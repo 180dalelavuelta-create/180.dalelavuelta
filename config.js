@@ -167,10 +167,10 @@ window.TIENDA_CONFIG = {
     },
   },
 
-  pedidoMinimo: null,
+  pedidoMinimo: null,   // monto mínimo de compra. null = sin mínimo
 
   // Cantidad máxima de cada producto por pedido
-  maximoPorProducto: 5,   // monto mínimo de compra. null = sin mínimo
+  maximoPorProducto: 5,
 
   /* ---------------- REGISTRO EN GOOGLE SHEETS (opcional) ----------------
      Ver LEEME.md → "Registro de pedidos". Pegar acá la URL del Apps Script
