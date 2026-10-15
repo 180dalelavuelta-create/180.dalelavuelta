@@ -411,7 +411,7 @@
       '<p class="en-carrito">' + (enCarrito ? "En tu pedido: <strong>" + enCarrito + "</strong>" + (restante ? "" : " (máximo)") : "") + "</p>";
 
     const img = prod.imagen
-      ? '<img src="' + esc(prod.imagen) + '" alt="' + esc(prod.nombre) + '" loading="lazy" decoding="async" width="900" height="675">'
+      ? '<img src="' + esc(prod.imagen) + '" alt="' + esc(prod.nombre) + '" loading="eager" decoding="async" width="900" height="675">'
       : "";
     const etiqueta = prod.etiqueta && !agotado ? '<span class="etiqueta">' + esc(prod.etiqueta) + "</span>" : "";
     const ah = agotado ? null : ahorro(prod, cfg.productos, S.prueba);
@@ -476,6 +476,7 @@
     if (nuevo === antes) { toast("Podés pedir hasta " + max + " de " + prod.nombre + "."); return; }
     S.carrito[id] = nuevo;
     S.cantSel[id] = 1;
+    $("#gracias").hidden = true;
     guardar();
     actualizarTarjeta(id);
     pintarPedido();
@@ -504,7 +505,7 @@
     $("#barraCant").textContent = t.cantidadItems + (t.cantidadItems === 1 ? " producto" : " productos");
     actualizarBarra();
 
-    $("#pedidoVacio").hidden = !vacio;
+    $("#pedidoVacio").hidden = !vacio || !$("#gracias").hidden;
     $("#pedidoLleno").hidden = vacio;
     if (vacio) return;
 
@@ -639,13 +640,10 @@
     }
     $("#resumenErrores").hidden = true;
     actualizarLinkWA(); // href final ya armado; el navegador abre el link
-    store.set("idPedido", S.idPedido);
     registrar(t);
-    setTimeout(() => {
-      $("#pasoEnviar").hidden = false;
-      $("#linkReabrir").href = $("#btnFinalizar").href;
-      $("#pasoEnviar").scrollIntoView({ block: "nearest", behavior: suave() });
-    }, 300);
+    // El mensaje de WhatsApp ya lleva el pedido completo: vaciamos el carrito ya mismo
+    // (así, si el cliente vuelve a la página, no encuentra el pedido viejo).
+    pedidoEnviado($("#btnFinalizar").href);
   }
 
   function registrar(t) {
@@ -678,20 +676,23 @@
     } catch (e) { /* el registro es opcional: WhatsApp sigue siendo el canal principal */ }
   }
 
-  function pedidoEnviado() {
+  function pedidoEnviado(href) {
+    // Primero se guarda (sincrónico); la pantalla se actualiza después de que se abre WhatsApp
     S.carrito = {};
+    S.cantSel = {};
     S.idPedido = null;
     store.del("idPedido");
     S.datos.observaciones = "";
-    S.datos.fecha = "";
+    S.intento = false;
     guardar();
-    $("#f-observaciones").value = "";
-    if ($("#f-fecha")) $("#f-fecha").value = "";
-    $("#pasoEnviar").hidden = true;
-    actualizarCatalogo();
-    pintarPedido();
-    $("#gracias").hidden = false;
-    $("#gracias").scrollIntoView({ block: "center", behavior: suave() });
+    setTimeout(() => {
+      $("#f-observaciones").value = "";
+      $("#linkReabrir").href = href;
+      $("#gracias").hidden = false;
+      actualizarCatalogo();
+      pintarPedido();
+      $("#pedido").scrollIntoView({ block: "start", behavior: suave() });
+    }, 0);
   }
 
   /* ---------- Formulario ---------- */
@@ -920,9 +921,8 @@
       if (t.dataset.copiar) return copiar(t.dataset.copiar, t);
       if (t.id === "btnCarrito" || t.id === "btnBarra") { e.preventDefault(); return irAPedido(); }
       if (t.id === "btnFinalizar") return finalizar(e);
-      if (t.id === "btnEnviado") return pedidoEnviado();
       if (t.id === "btnPrueba") return cambiarModoPrueba();
-      if (t.id === "btnSeguir") { $("#gracias").hidden = true; $("#productos").scrollIntoView({ behavior: suave() }); }
+      if (t.id === "btnSeguir") { $("#gracias").hidden = true; pintarPedido(); $("#productos").scrollIntoView({ behavior: suave() }); }
     });
 
     if ("IntersectionObserver" in global) {

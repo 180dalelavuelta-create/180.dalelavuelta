@@ -15,6 +15,7 @@
 <meta property="og:image:height" content="800">
 <meta property="og:image:alt" content="Logo de 180° Dale la vuelta">
 <meta name="twitter:card" content="summary">
+<link rel="preload" as="image" href="img/logo.png" fetchpriority="high">
 <link rel="icon" type="image/png" href="img/icono.png">
 <link rel="apple-touch-icon" href="img/icono.png">
 <title>180° Dale la vuelta</title>
@@ -272,11 +273,9 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
 .btn-wa .ico { width: 24px; height: 24px; }
 .nota-cierre { margin: 0; font-size: .85rem; color: var(--tinta-2); text-align: center; }
 .resumen-err { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--error-tinte); color: var(--error); font-weight: 600; font-size: .92rem; }
-.paso-enviar { padding: 14px; border-radius: 8px; border: 2px solid var(--wa); background: var(--ok-tinte); display: grid; gap: 10px; }
-.paso-enviar p { margin: 0; }
-.paso-enviar .acc { display: flex; flex-wrap: wrap; gap: 8px; }
 .gracias { margin: 0 18px 18px; padding: 16px; border-radius: 8px; background: var(--ok-tinte); border: 1px solid #cfe5d7; }
 .gracias p { margin: 0 0 10px; }
+.gracias .acc { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ---------- Barra inferior (celular) ---------- */
 .barra { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--papel); border-top: 1px solid var(--linea); }
@@ -301,6 +300,8 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
 /* ---------- Pantalla de carga ---------- */
 .carga { position: fixed; inset: 0; z-index: 100; background: var(--papel); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; transition: opacity .4s ease, visibility .4s; animation: cargaFin 0s 6s forwards; }
 .carga img { width: min(48vw, 210px); height: auto; mix-blend-mode: multiply; }
+.carga img, .carga-barra { opacity: 0; transition: opacity .3s ease; }
+.carga.lista img, .carga.lista .carga-barra { opacity: 1; }
 .carga-barra { width: min(38vw, 150px); height: 3px; border-radius: 3px; background: var(--linea); overflow: hidden; }
 .carga-barra span { display: block; width: 100%; height: 100%; background: var(--tinta); border-radius: 3px; transform: scaleX(0); transform-origin: left center; transition: transform 1.6s cubic-bezier(.2, .7, .3, 1); }
 .carga.fuera { opacity: 0; visibility: hidden; }
@@ -327,16 +328,27 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
 </div>
 <script>
 (function () {
-  var c = document.getElementById("carga"), b = c.querySelector("span"), t0 = Date.now(), hecho = false;
-  requestAnimationFrame(function () { requestAnimationFrame(function () { b.style.transform = "scaleX(.85)"; }); });
+  var c = document.getElementById("carga"), logo = c.querySelector("img"), b = c.querySelector("span");
+  var t0 = 0, visible = false, hecho = false, pendientes = 2;
+  // 1) El logo y la línea aparecen juntos, recién cuando el logo ya cargó
+  function mostrar() {
+    if (visible) return; visible = true; t0 = Date.now();
+    c.classList.add("lista");
+    requestAnimationFrame(function () { requestAnimationFrame(function () { b.style.transform = "scaleX(.85)"; }); });
+  }
+  if (logo.complete && logo.naturalWidth) mostrar();
+  else { logo.addEventListener("load", mostrar); logo.addEventListener("error", mostrar); setTimeout(mostrar, 1000); }
+  // 2) Se va cuando están listas las fotos y las tipografías, así la página aparece entera de una vez
   function fin() {
-    if (hecho) return; hecho = true;
+    if (hecho) return; hecho = true; mostrar();
     setTimeout(function () {
       b.style.transition = "transform .25s ease-out"; b.style.transform = "scaleX(1)";
       setTimeout(function () { c.classList.add("fuera"); setTimeout(function () { c.hidden = true; }, 450); }, 300);
     }, Math.max(0, 900 - (Date.now() - t0)));
   }
-  if (document.readyState === "complete") fin(); else window.addEventListener("load", fin);
+  function uno() { if (--pendientes <= 0) fin(); }
+  if (document.readyState === "complete") uno(); else window.addEventListener("load", uno);
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(uno, uno);
   setTimeout(fin, 5000);
 })();
 </script>
@@ -357,7 +369,7 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
   <div class="envase">
     <a class="marca" href="#inicio" aria-label="180° Dale la vuelta, inicio">
       <span class="marca-texto" aria-hidden="true"><b>Río Ceballos · Córdoba</b><small>Fábrica de milanesas</small></span>
-      <img data-logo alt="180° Dale la vuelta. Milanesas a tu puerta" width="342" height="360">
+      <img src="img/logo.png" data-logo alt="180° Dale la vuelta. Milanesas a tu puerta" width="342" height="360">
     </a>
     <nav class="nav" aria-label="Secciones">
       <a href="#productos">Productos</a>
@@ -374,7 +386,7 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
 <main id="inicio">
   <section class="hero">
     <div class="envase">
-      <h1 class="hero-logo"><img id="heroLogo" data-logo alt="180° Dale la vuelta. Milanesas a tu puerta" width="686" height="720" fetchpriority="high"></h1>
+      <h1 class="hero-logo"><img id="heroLogo" src="img/logo.png" data-logo alt="180° Dale la vuelta. Milanesas a tu puerta" width="686" height="720" fetchpriority="high"></h1>
       <p class="sub">Milanesas de pollo hechas en Río Ceballos. Elegí, armá tu pedido y recibilo en casa.</p>
       <ul class="beneficios">
         <li id="envioHero"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 6h11v9H3zM14 9h4l3 3v3h-7M7.5 18.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm10 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>Envío gratis en nuestra zona de reparto</li>
@@ -413,9 +425,12 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
         </div>
 
         <div class="gracias" id="gracias" hidden>
-          <p><strong>¡Gracias por tu pedido!</strong> Te respondemos por WhatsApp para confirmar disponibilidad y entrega.</p>
+          <p><strong>¡Listo! Se abrió WhatsApp con tu pedido.</strong> Para que nos llegue, tocá <strong>Enviar</strong> en WhatsApp. Después te confirmamos por ahí.</p>
           <p id="graciasEntrega" hidden></p>
-          <button type="button" class="btn-borde" id="btnSeguir">Hacer otro pedido</button>
+          <div class="acc">
+            <a class="btn-borde" id="linkReabrir" target="_blank" rel="noopener">Abrir WhatsApp otra vez</a>
+            <button type="button" class="btn-borde" id="btnSeguir">Hacer otro pedido</button>
+          </div>
         </div>
 
         <div id="pedidoLleno" hidden>
@@ -497,13 +512,6 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
               <div class="cierre-total"><span>Total a pagar</span><span id="totalFinal">$ 0</span></div>
               <a class="btn-wa" id="btnFinalizar" href="#" target="_blank" rel="noopener"><i data-ico-wa></i>Finalizar pedido por WhatsApp</a>
               <p class="nota-cierre">Se abre WhatsApp con tu pedido escrito. Para que nos llegue, tocá <strong>Enviar</strong>.</p>
-              <div class="paso-enviar" id="pasoEnviar" hidden>
-                <p><strong>¿Ya lo enviaste?</strong> El pedido nos llega cuando tocás Enviar dentro de WhatsApp. Después te confirmamos disponibilidad y entrega.</p>
-                <div class="acc">
-                  <button type="button" class="btn-primario" id="btnEnviado">Sí, ya lo envié</button>
-                  <a class="btn-borde" id="linkReabrir" target="_blank" rel="noopener">Abrir WhatsApp otra vez</a>
-                </div>
-              </div>
             </div>
           </form>
         </div>
@@ -514,7 +522,7 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
 
 <footer class="pie">
   <div class="envase">
-    <img data-logo alt="180° Dale la vuelta" width="342" height="360" loading="lazy">
+    <img src="img/logo.png" data-logo alt="180° Dale la vuelta" width="342" height="360" loading="lazy">
     <div class="pie-datos">
       <p><strong>Fábrica de milanesas</strong> · Río Ceballos, Córdoba</p>
       <p>WhatsApp: <span data-wa-num></span></p>
