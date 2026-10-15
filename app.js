@@ -9,8 +9,18 @@
   const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
   const fmt = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
+  // El signo $ nunca queda separado del número
   function formatPrecio(n) {
-    return "$ " + fmt.format(Math.round(n)).replace(/ /g, " ");
+    return "$\u00a0" + fmt.format(Math.round(n)).replace(/\s/g, "");
+  }
+
+  // Evita cortes de línea feos: "14 h", "2 kg", "10 a 14", "17 de octubre" quedan siempre juntos
+  function sinCortes(s) {
+    return String(s == null ? "" : s)
+      .replace(/(\d+) a (\d+)/g, "$1\u00a0a\u00a0$2")
+      .replace(/(\d) (h|hs|kg|g)(?![\wáéíóú])/g, "$1\u00a0$2")
+      .replace(/(las|de) (\d)/g, "$1\u00a0$2")
+      .replace(/(\d+) de ([a-záéíóú]+)/g, "$1\u00a0de\u00a0$2");
   }
 
   // En modo prueba se usan precios redondos de ejemplo SOLO para productos sin precio.
@@ -211,7 +221,7 @@
     L.push("Observaciones: " + (obs || "Sin observaciones"), "");
     if (hor) L.push("Sé que pasan a dejar el pedido " + hor.largo + " y va a haber alguien para recibirlo.");
     L.push("¡Espero la confirmación del pedido!");
-    return L.join("\n");
+    return L.join("\n").replace(/\u00a0/g, " ");
   }
 
   function urlWhatsApp(numero, mensaje) {
@@ -238,7 +248,7 @@
   }
 
   const Logica = {
-    formatPrecio, precioDe, ahorro, sePuedeComprar, maximo, sanearCarrito, calcularTotales,
+    formatPrecio, sinCortes, precioDe, ahorro, sePuedeComprar, maximo, sanearCarrito, calcularTotales,
     fechasDisponibles, textoHorarios, extraerLink, linkUbicacion, cobertura, textoEnvio, validar, armarMensaje, urlWhatsApp, generarId, pendientes,
     nombrePago,
   };
@@ -322,13 +332,13 @@
     if (fechas.length) {
       const h = $("#fechaHero");
       h.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/></svg>' +
-        esc((fechas.length === 1 ? "Entrega: " : "Próxima entrega: ") + fechas[0].larga + (cfg.entregas.horario ? ", " + cfg.entregas.horario.corto : ""));
+        esc(sinCortes((fechas.length === 1 ? "Entrega: " : "Próxima entrega: ") + fechas[0].larga + (cfg.entregas.horario ? ", " + cfg.entregas.horario.corto : "")));
       h.hidden = false;
     }
 
     if (fechas.length === 1 && cfg.entregas.horario) {
       const g = $("#graciasEntrega");
-      g.textContent = "El " + fechas[0].larga + ", " + cfg.entregas.horario.largo + ", pasamos a dejarte el pedido.";
+      g.textContent = sinCortes("El " + fechas[0].larga + ", " + cfg.entregas.horario.largo + ", pasamos a dejarte el pedido.");
       g.hidden = false;
     }
 
@@ -413,7 +423,7 @@
       : "";
     const etiqueta = prod.etiqueta && !agotado ? '<span class="etiqueta">' + esc(prod.etiqueta) + "</span>" : "";
     const ah = agotado ? null : ahorro(prod, cfg.productos, S.prueba);
-    const ahorroHtml = ah ? '<p class="ahorro">¡Ahorrás ' + formatPrecio(ah.monto) + (prod.contenido ? " llevando " + esc(prod.contenido) : "") + "!</p>" : "";
+    const ahorroHtml = ah ? '<p class="ahorro">¡Ahorrás ' + formatPrecio(ah.monto) + (prod.contenido ? " llevando " + esc(sinCortes(prod.contenido)) : "") + "!</p>" : "";
 
     if (prod.tipo === "combo") {
       return (
@@ -433,7 +443,7 @@
       (img ? '<div class="card-foto">' + img + etiqueta + "</div>" : "") +
       '<div class="card-cuerpo">' +
       "<h3>" + esc(prod.nombre) + "</h3>" +
-      '<p class="desc">' + esc(prod.descripcion || "") + (prod.contenido ? ' <span class="peso">' + esc(prod.contenido) + "</span>" : "") + "</p>" +
+      '<p class="desc">' + esc(prod.descripcion || "") + (prod.contenido ? ' <span class="peso">' + esc(sinCortes(prod.contenido)) + "</span>" : "") + "</p>" +
       '<div class="fila-precio">' + precioHtml + "</div>" + ahorroHtml + accion +
       "</div></article>"
     );
@@ -733,15 +743,15 @@
       $("#f-fecha").hidden = true;
       $("#fechaFija").hidden = false;
       const hor = cfg.entregas.horario;
-      $("#fechaFija").textContent = hor
+      $("#fechaFija").textContent = sinCortes(hor
         ? "El " + fechas[0].larga + ", " + hor.largo + ", pasamos a dejarte el pedido."
-        : "Entregamos el " + fechas[0].larga + ".";
+        : "Entregamos el " + fechas[0].larga + ".");
       $("#fechaAyuda").hidden = !hor;
     } else if (cfg.entregas.pedirFecha && !fechas.length) {
       $("#grupoFecha").hidden = false;
       $("#f-fecha").hidden = true;
       $("#fechaFija").hidden = false;
-      $("#fechaFija").textContent = "Te confirmamos la próxima fecha de entrega por WhatsApp." + (cfg.entregas.horario ? " Repartimos " + cfg.entregas.horario.largo + "." : "");
+      $("#fechaFija").textContent = sinCortes("Te confirmamos la próxima fecha de entrega por WhatsApp." + (cfg.entregas.horario ? " Repartimos " + cfg.entregas.horario.largo + "." : ""));
     }
     if (fechas.length > 1) {
       $("#grupoFecha").hidden = false;
