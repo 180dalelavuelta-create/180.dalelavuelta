@@ -140,8 +140,7 @@
   function validar(d, cfg, opciones) {
     const err = {};
     const nombre = (d.nombre || "").trim();
-    if (!nombre) err.nombre = "Escribí tu nombre y apellido.";
-    else if (nombre.split(/\s+/).length < 2) err.nombre = "Sumá tu apellido, así identificamos el pedido.";
+    if (nombre.length < 2) err.nombre = "Escribí tu nombre y apellido.";
     const digitos = (d.telefono || "").replace(/\D/g, "");
     if (!digitos) err.telefono = "Necesitamos un teléfono para confirmar el pedido.";
     else if (digitos.length < 8 || digitos.length > 15) err.telefono = "Revisá el número: debería tener entre 8 y 15 dígitos.";
@@ -149,10 +148,8 @@
     if (!(d.localidad || "").trim()) err.localidad = "Elegí tu localidad.";
     else if (cfg.envio.zonas && cfg.envio.zonas.length && !cfg.envio.permitirOtraLocalidad && cobertura(d.localidad, cfg) !== "en-zona")
       err.localidad = "Por ahora entregamos solo en las localidades de la lista.";
-    if (opciones.fechas.length && !d.fecha) err.fecha = "Elegí una fecha de entrega.";
+    if (opciones.fechas.length > 1 && !opciones.fechas.some((f) => f.valor === d.fecha)) err.fecha = "Elegí una fecha de entrega.";
     if (cfg.entregas.franjas.length && !(d.franjas && d.franjas.length)) err.franja = "Marcá al menos un horario en el que puedas recibir.";
-    if ((d.ubicacionLink || "").trim() && !(d.ubicacion && d.ubicacion.lat) && !extraerLink(d.ubicacionLink))
-      err.ubicLink = "Eso no parece un link. En Google Maps tocá Compartir → Copiar link, o dejá este campo vacío.";
     if (!d.pago) err.pago = "Elegí cómo vas a pagar.";
     return err;
   }
@@ -165,7 +162,8 @@
 
   function linkUbicacion(d) {
     if (d.ubicacion && d.ubicacion.lat) return "https://maps.google.com/?q=" + d.ubicacion.lat + "," + d.ubicacion.lng;
-    return extraerLink(d.ubicacionLink);
+    const txt = String(d.ubicacionLink || "").trim();
+    return extraerLink(txt) || txt.slice(0, 300);
   }
 
   // Horarios marcados, en el orden de la configuración
@@ -304,7 +302,7 @@
     const wa = urlWhatsApp(cfg.contacto.whatsapp, "Hola, tengo una consulta.");
     $$("[data-wa]").forEach((a) => { a.href = wa; });
     $$("[data-wa-num]").forEach((el) => { el.textContent = cfg.contacto.whatsappVisible; });
-    $$("[data-logo]").forEach((img) => { img.src = cfg.marca.logo; });
+    $$("[data-logo]").forEach((img) => { if (img.getAttribute("src") !== cfg.marca.logo) img.src = cfg.marca.logo; });
     $$("[data-ico-wa]").forEach((el) => { el.innerHTML = iconoWA(); });
 
     const ig = cfg.contacto.instagram;
@@ -590,6 +588,7 @@
   }
 
   function textoFecha() {
+    if (fechas.length === 1) return fechas[0].etiqueta; // fecha única: siempre esa
     const f = fechas.find((x) => x.valor === S.datos.fecha);
     if (f) return f.etiqueta;
     return cfg.entregas.pedirFecha && !fechas.length ? "A coordinar" : "";
@@ -748,6 +747,7 @@
       $("#grupoFecha").hidden = false;
       $("#f-fecha").innerHTML = '<option value="">Elegí una fecha</option>' + fechas.map((f) => '<option value="' + f.valor + '">' + f.etiqueta + "</option>").join("");
       $("#f-fecha").value = S.datos.fecha;
+      $("#f-fecha").addEventListener("change", () => { S.datos.fecha = $("#f-fecha").value; cambio(); });
     }
 
     // Horarios para recibir (varios a la vez)
@@ -772,7 +772,7 @@
     }
 
     // Textos simples
-    for (const c of ["nombre", "telefono", "direccion", "observaciones", "fecha"]) {
+    for (const c of ["nombre", "telefono", "direccion", "observaciones"]) {
       const el = $("#f-" + c);
       if (!el) continue;
       if (el.tagName !== "SELECT") el.value = S.datos[c] || "";
