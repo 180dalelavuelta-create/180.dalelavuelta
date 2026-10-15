@@ -16,6 +16,7 @@ Web de pedidos: el cliente elige productos, completa la entrega y el pago, y la 
 
 - **Precios**: `precio: 14000` (sin $ ni puntos).
 - **Agotar un producto**: `disponible: false`.
+- **Máximo por producto en cada pedido**: `maximoPorProducto` (hoy 5).
 - **Fecha de entrega**: `entregas.fechas` (ver abajo).
 - **Descuento por transferencia**: `pagos.transferencia.descuento.habilitado: true` y el `porcentaje`. Hoy está apagado. No se aplica a productos con `esPromocion: true`.
 - **Localidades con reparto**: `envio.zonas`.

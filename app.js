@@ -37,7 +37,9 @@
   }
 
   function maximo(prod) {
-    return typeof prod.stock === "number" && prod.stock > 0 ? Math.min(prod.stock, 99) : 99;
+    const c = global.TIENDA_CONFIG;
+    const lim = c && c.maximoPorProducto > 0 ? c.maximoPorProducto : 99;
+    return typeof prod.stock === "number" && prod.stock > 0 ? Math.min(prod.stock, lim) : lim;
   }
 
   // Limpia un carrito guardado: saca productos inexistentes, agotados o sin precio, y respeta el stock.
@@ -388,8 +390,10 @@
     const precio = precioDe(prod, S.prueba);
     const comprable = sePuedeComprar(prod, S.prueba);
     const agotado = prod.disponible === false || prod.stock === 0;
-    const sel = S.cantSel[prod.id] || 1;
     const enCarrito = S.carrito[prod.id] || 0;
+    const tope = maximo(prod);
+    const restante = Math.max(0, tope - enCarrito);
+    const sel = restante ? Math.min(S.cantSel[prod.id] || 1, restante) : 0;
     const ejemplo = S.prueba && !(typeof prod.precio === "number" && prod.precio > 0);
     let precioHtml;
     if (agotado) precioHtml = '<span class="chip chip-agotado">Agotado</span>';
@@ -400,12 +404,14 @@
     if (agotado) accion = '<p class="nota-card">Sin stock por ahora. Consultanos por WhatsApp.</p>';
     else if (precio === null) accion = '<p class="nota-card">Todavía no está a la venta.</p>';
     else accion =
-      '<div class="acciones">' + stepper(prod.id, sel, maximo(prod), "card", 1) +
-      '<button type="button" class="btn-agregar" data-agregar="' + prod.id + '">+ Agregar</button></div>' +
-      '<p class="en-carrito">' + (enCarrito ? "En tu pedido: <strong>" + enCarrito + "</strong>" : "") + "</p>";
+      '<div class="acciones">' + stepper(prod.id, sel, restante, "card", 1) +
+      (restante
+        ? '<button type="button" class="btn-agregar" data-agregar="' + prod.id + '">+ Agregar</button>'
+        : '<button type="button" class="btn-agregar tope" disabled>Máximo ' + tope + " por pedido</button>") + "</div>" +
+      '<p class="en-carrito">' + (enCarrito ? "En tu pedido: <strong>" + enCarrito + "</strong>" + (restante ? "" : " (máximo)") : "") + "</p>";
 
     const img = prod.imagen
-      ? '<img src="' + esc(prod.imagen) + '" alt="' + esc(prod.nombre) + '" loading="lazy" width="900" height="675">'
+      ? '<img src="' + esc(prod.imagen) + '" alt="' + esc(prod.nombre) + '" loading="lazy" decoding="async" width="900" height="675">'
       : "";
     const etiqueta = prod.etiqueta && !agotado ? '<span class="etiqueta">' + esc(prod.etiqueta) + "</span>" : "";
     const ah = agotado ? null : ahorro(prod, cfg.productos, S.prueba);
@@ -440,6 +446,26 @@
     $("#gridCombos").innerHTML = cfg.productos.filter((p) => p.tipo === "combo").map(tarjeta).join("");
   }
 
+  // Actualiza solo textos y botones de una tarjeta; la foto no se toca (así no parpadea ni se pixela)
+  function actualizarTarjeta(id) {
+    const prod = cfg.productos.find((p) => p.id === id);
+    const art = $('[data-prod="' + id + '"]');
+    if (!prod || !art) return false;
+    const tmp = document.createElement("div");
+    tmp.innerHTML = tarjeta(prod);
+    const nueva = tmp.firstElementChild;
+    const cuerpoNuevo = nueva.querySelector(".card-cuerpo, .combo-cuerpo");
+    const cuerpoViejo = art.querySelector(".card-cuerpo, .combo-cuerpo");
+    if (!cuerpoNuevo || !cuerpoViejo) return false;
+    cuerpoViejo.replaceWith(cuerpoNuevo);
+    art.className = nueva.className;
+    return true;
+  }
+
+  function actualizarCatalogo() {
+    if (!cfg.productos.every((p) => actualizarTarjeta(p.id))) pintarCatalogo();
+  }
+
   function agregar(id, boton) {
     const prod = cfg.productos.find((p) => p.id === id);
     if (!sePuedeComprar(prod, S.prueba)) { toast("Ese producto no está disponible."); return; }
@@ -447,15 +473,20 @@
     const max = maximo(prod);
     const antes = S.carrito[id] || 0;
     const nuevo = Math.min(antes + cant, max);
-    if (nuevo === antes) { toast("Llegaste al máximo disponible de " + prod.nombre + "."); return; }
+    if (nuevo === antes) { toast("Podés pedir hasta " + max + " de " + prod.nombre + "."); return; }
     S.carrito[id] = nuevo;
     S.cantSel[id] = 1;
     guardar();
-    pintarCatalogo();
+    actualizarTarjeta(id);
     pintarPedido();
-    toast("Agregado: " + prod.nombre + " x " + (nuevo - antes) + (nuevo < antes + cant ? " (máximo disponible)" : ""));
-    const b = $('[data-agregar="' + id + '"]');
-    if (b) { b.classList.add("ok"); b.textContent = "Agregado ✓"; setTimeout(() => { const bb = $('[data-agregar="' + id + '"]'); if (bb) { bb.classList.remove("ok"); bb.textContent = "+ Agregar"; } }, 1400); }
+    toast("Agregado: " + prod.nombre + " x " + (nuevo - antes) + (nuevo === max ? " · llegaste al máximo de " + max : ""));
+    const b = $('[data-agregar="' + id + '"]') || $('[data-prod="' + id + '"] .btn-agregar');
+    if (b) {
+      b.classList.add("ok"); b.textContent = "Agregado ✓";
+      clearTimeout(agregar.t && agregar.t[id]);
+      agregar.t = agregar.t || {};
+      agregar.t[id] = setTimeout(() => actualizarTarjeta(id), 1400);
+    }
   }
 
   /* ---------- Pedido ---------- */
@@ -657,7 +688,7 @@
     $("#f-observaciones").value = "";
     if ($("#f-fecha")) $("#f-fecha").value = "";
     $("#pasoEnviar").hidden = true;
-    pintarCatalogo();
+    actualizarCatalogo();
     pintarPedido();
     $("#gracias").hidden = false;
     $("#gracias").scrollIntoView({ block: "center", behavior: suave() });
@@ -862,7 +893,7 @@
       if (t.dataset.agregar) return agregar(t.dataset.agregar, t);
       if (t.dataset.quitar) {
         const prod = cfg.productos.find((p) => p.id === t.dataset.quitar);
-        delete S.carrito[t.dataset.quitar]; guardar(); pintarCatalogo(); pintarPedido();
+        delete S.carrito[t.dataset.quitar]; guardar(); actualizarCatalogo(); pintarPedido();
         toast("Quitaste " + (prod ? prod.nombre : "el producto"));
         const sig = $("[data-quitar]") || $("#pedido h2"); if (sig) sig.focus();
         return;
@@ -873,12 +904,13 @@
         const delta = t.dataset.mas ? 1 : -1;
         const ctx = t.closest(".stepper").dataset.ctx;
         if (ctx === "card") {
-          S.cantSel[id] = Math.max(1, Math.min(maximo(prod), (S.cantSel[id] || 1) + delta));
-          pintarCatalogo();
+          const restante = Math.max(1, maximo(prod) - (S.carrito[id] || 0));
+          S.cantSel[id] = Math.max(1, Math.min(restante, (S.cantSel[id] || 1) + delta));
+          actualizarTarjeta(id);
         } else {
           const n = (S.carrito[id] || 0) + delta;
           if (n <= 0) delete S.carrito[id]; else S.carrito[id] = Math.min(n, maximo(prod));
-          guardar(); pintarCatalogo(); pintarPedido();
+          guardar(); actualizarTarjeta(id); pintarPedido();
         }
         const mismo = $('.stepper[data-ctx="' + ctx + '"] [data-' + (delta > 0 ? "mas" : "menos") + '="' + id + '"]');
         if (mismo && !mismo.disabled) mismo.focus();
