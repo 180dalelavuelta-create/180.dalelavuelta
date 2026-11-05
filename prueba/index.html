@@ -179,32 +179,30 @@ body.hero-visible .marca-texto { opacity: 1; transition: opacity .16s ease .14s;
 .st-btn:disabled { color: #bdb5ab; cursor: default; }
 .st-val { min-width: 26px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-/* Combo: banda negra, la composición es la protagonista */
-/* Combos con papas: tarjetas claras y compactas, la foto acompaña (al costado en pantallas grandes) */
-#gridCombos { display: grid; gap: 14px; }
-.combos-foto { border-radius: var(--r); overflow: hidden; aspect-ratio: 16 / 9; max-width: 100%; background: var(--papel-2); }
+/* Combos con papas: lista tipo menú de delivery (foto + filas con botón "+") */
+#gridCombos { display: block; }
+.combos-menu { border: 1px solid var(--linea); border-radius: 14px; overflow: hidden; background: var(--papel); }
+.combos-foto { aspect-ratio: 16 / 9; max-width: 100%; background: var(--papel-2); }
 .combos-foto img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 55%; }
-.combos-lista { display: grid; gap: 10px; align-content: start; }
-.combo { background: var(--papel); border: 1px solid var(--linea); border-radius: 12px; }
-.combo-cuerpo { padding: 12px 14px 10px; display: grid; gap: 8px; min-width: 0; }
-.combo-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.combo-tag { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--dorado); background: var(--dorado-tinte); border-radius: 999px; padding: 4px 10px; }
-.combo-comp { min-width: 0; display: grid; gap: 2px; }
-.cc-linea { margin: 0; font-size: .95rem; color: var(--tinta-2); line-height: 1.3; }
-.cc-linea b { font-family: var(--f-display); font-style: italic; font-weight: 800; font-size: 1.45rem; color: var(--tinta); letter-spacing: .005em; }
-.cc-linea .cc-mas { color: var(--dorado); font-weight: 800; }
-.combo .fila-precio { min-height: 0; flex: none; }
-.combo .precio { font-size: 1.3rem; }
-.combo .acciones { gap: 8px; }
-.combo .stepper { height: 44px; }
-.combo .st-btn { width: 40px; }
-.combo .btn-agregar { min-height: 44px; font-size: .95rem; }
-.combo .en-carrito { min-height: 0; }
-.combo .en-carrito:empty { display: none; }
-.combo .nota-card { margin: 0; }
+.combo { border-top: 1px solid var(--linea); transition: background-color .2s ease; }
+.combo.en-pedido { background: var(--dorado-tinte); }
+.combo-cuerpo { display: flex; align-items: center; gap: 14px; padding: 14px 16px; min-width: 0; }
+.cf-txt { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.cf-nombre { font-size: 1.35rem; line-height: 1.05; }
+.cf-desc { margin: 0; font-size: .88rem; line-height: 1.35; color: var(--tinta-2); }
+.cf-linea { margin: 2px 0 0; display: flex; align-items: center; gap: 8px; }
+.cf-precio { font-weight: 700; font-size: 1.08rem; font-variant-numeric: tabular-nums; }
+.cf-tope { font-size: .78rem; color: var(--dorado); font-weight: 600; }
+.cf-accion { flex: none; }
+.btn-mas { width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--tinta); color: var(--papel); font-size: 1.6rem; line-height: 1; display: grid; place-items: center; cursor: pointer; padding: 0 0 2px; transition: transform .15s ease, background-color .15s ease; }
+.btn-mas:hover { background: #2b2622; }
+.btn-mas:active { transform: scale(.92); }
+.combo .stepper { height: 40px; background: var(--papel); }
+.combo .st-btn { width: 36px; font-size: 1.2rem; }
+.combo.no-disp .cf-nombre, .combo.no-disp .cf-desc { opacity: .55; }
 @media (min-width: 760px) {
-  #gridCombos.con-foto { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: stretch; }
-  #gridCombos.con-foto .combos-foto { aspect-ratio: auto; min-height: 100%; }
+  .combos-foto { aspect-ratio: 21 / 9; }
+  .combos-foto img { object-position: 50% 38%; }
 }
 
 /* ---------- Pedido ---------- */
@@ -456,7 +454,7 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
       </section>
 
       <section class="seccion" id="combos" aria-labelledby="t-combos">
-        <div class="sec-head"><h2 id="t-combos">Combos con papas</h2><p>Milanesas + papas McCain</p></div>
+        <div class="sec-head"><h2 id="t-combos">Combos con papas</h2><p>Milanesas + papas McCain bastón</p></div>
         <div id="gridCombos"></div>
       </section>
     </div>
@@ -600,7 +598,7 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="config.js?v=43b91a01"></script>
-<script src="app.js?v=b8ee9a95"></script>
+<script src="config.js?v=a1232aea"></script>
+<script src="app.js?v=596a50ac"></script>
 </body>
 </html>

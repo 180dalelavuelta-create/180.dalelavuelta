@@ -81,12 +81,12 @@ window.TIENDA_CONFIG = {
     },
 
     // ---- Combos con papas McCain ----
-    // incluye: cada renglón empieza con la cantidad ("1 kg de ...", "500 g de ...") para que se vea destacada
+    // Se muestran como lista: nombre, qué incluye y precio, con un botón "+" para agregar
     {
       id: "combo-1kg-papas",
       tipo: "combo",
-      nombre: "Combo 1 kg milas + 500 g papas McCain",
-      incluye: ["1 kg de milanesas", "500 g de papas McCain bastón"],
+      nombre: "Combo 1 kg con papas",
+      descripcion: "1 kg de milanesas + 500 g de papas McCain bastón",
       precio: 20000,
       disponible: true,
       stock: null,
@@ -96,8 +96,8 @@ window.TIENDA_CONFIG = {
     {
       id: "combo-2kg-papas",
       tipo: "combo",
-      nombre: "Combo 2 kg milas + 500 g papas McCain",
-      incluye: ["2 kg de milanesas", "500 g de papas McCain bastón"],
+      nombre: "Combo 2 kg con papas",
+      descripcion: "2 kg de milanesas + 500 g de papas McCain bastón",
       precio: 30000,
       disponible: true,
       stock: null,
@@ -107,8 +107,8 @@ window.TIENDA_CONFIG = {
     {
       id: "combo-2kg-papas1kg",
       tipo: "combo",
-      nombre: "Combo 2 kg milas + 1 kg papas McCain",
-      incluye: ["2 kg de milanesas", "1 kg de papas McCain bastón"],
+      nombre: "Combo 2 kg con doble papas",
+      descripcion: "2 kg de milanesas + 1 kg de papas McCain bastón",
       precio: 35000,
       disponible: true,
       stock: null,

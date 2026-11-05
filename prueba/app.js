@@ -462,17 +462,22 @@
     const ahorroHtml = ah ? '<p class="ahorro">¡Ahorrás ' + formatPrecio(ah.monto) + (prod.contenido ? " llevando " + esc(sinCortes(prod.contenido)) : "") + "!</p>" : "";
 
     if (prod.tipo === "combo") {
-      // "1 kg de milanesas" -> "1 kg" destacado + "de milanesas"; desde el 2.º renglón con "+"
-      const lineas = (prod.incluye || []).map((txt, i) => {
-        const m = String(txt).match(/^\s*([\d.,½]+\s*(?:kg|g|grs?|gramos|kilos?|u|unidades)?)\s+(.*)$/i);
-        const cuerpo = m ? "<b>" + esc(sinCortes(m[1])) + "</b> " + esc(m[2]) : esc(txt);
-        return '<p class="cc-linea">' + (i ? '<span class="cc-mas" aria-hidden="true">+</span> ' : "") + cuerpo + "</p>";
-      });
+      // Fila tipo app de delivery: nombre, qué incluye, precio y un "+" que al agregar se vuelve selector
+      let lado = "";
+      if (prod.proximamente || agotado || precio === null) lado = "";
+      else if (!enCarrito) lado = '<button type="button" class="btn-mas" data-agregar="' + prod.id + '" aria-label="Agregar ' + esc(prod.nombre) + '">+</button>';
+      else lado = stepper(prod.id, enCarrito, tope, "fila", 0);
+      let precioFila;
+      if (agotado) precioFila = '<span class="chip chip-agotado">Agotado</span>';
+      else if (precio === null) precioFila = '<span class="precio-pend">Precio a confirmar</span>';
+      else precioFila = '<span class="cf-precio">' + formatPrecio(precio) + "</span>" + (ejemplo ? ' <span class="chip chip-ej">ejemplo</span>' : "");
       return (
-        '<article class="combo' + (comprable ? "" : " no-disp") + '" data-prod="' + prod.id + '">' +
+        '<article class="combo' + (comprable ? "" : " no-disp") + (enCarrito ? " en-pedido" : "") + '" data-prod="' + prod.id + '">' +
         '<div class="combo-cuerpo">' +
-        '<div class="combo-top"><span class="combo-tag">Combo</span><div class="fila-precio">' + precioHtml + "</div></div>" +
-        '<div class="combo-comp">' + lineas.join("") + "</div>" + accion +
+        '<div class="cf-txt"><h3 class="cf-nombre">' + esc(prod.nombre) + "</h3>" +
+        (prod.descripcion ? '<p class="cf-desc">' + esc(sinCortes(prod.descripcion)) + "</p>" : "") +
+        '<p class="cf-linea">' + precioFila + (enCarrito && restante === 0 ? ' <span class="cf-tope">máximo ' + tope + "</span>" : "") + "</p></div>" +
+        (lado ? '<div class="cf-accion">' + lado + "</div>" : "") +
         "</div></article>"
       );
     }
@@ -490,12 +495,11 @@
   function pintarCatalogo() {
     $("#gridProductos").innerHTML = cfg.productos.filter((p) => p.tipo !== "combo").map(tarjeta).join("");
     const combos = cfg.productos.filter((p) => p.tipo === "combo");
-    $("#gridCombos").classList.toggle("con-foto", !!(cfg.fotoCombos && combos.length));
-    $("#gridCombos").innerHTML =
-      (cfg.fotoCombos && combos.length
-        ? '<div class="combos-foto"><img src="' + esc(cfg.fotoCombos) + '" alt="Milanesas de pollo y papas McCain de 180° Dale la vuelta" width="1200" height="960" loading="eager" decoding="async"></div>'
-        : "") +
-      '<div class="combos-lista">' + combos.map(tarjeta).join("") + "</div>";
+    $("#gridCombos").innerHTML = combos.length
+      ? '<div class="combos-menu">' +
+        (cfg.fotoCombos ? '<div class="combos-foto"><img src="' + esc(cfg.fotoCombos) + '" alt="Milanesas de pollo y papas McCain de 180° Dale la vuelta" width="1200" height="960" loading="eager" decoding="async"></div>' : "") +
+        '<div class="combos-lista">' + combos.map(tarjeta).join("") + "</div></div>"
+      : "";
   }
 
   // Actualiza solo textos y botones de una tarjeta; la foto no se toca (así no parpadea ni se pixela)
