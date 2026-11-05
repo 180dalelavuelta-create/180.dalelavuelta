@@ -164,7 +164,9 @@
     if (cfg.entregas.franjas.length && !(d.franjas && d.franjas.length)) err.franja = "Marcá al menos un horario en el que puedas recibir.";
     if (cfg.entregas.ubicacionObligatoria && !(d.ubicacion && d.ubicacion.lat)) {
       const txt = (d.ubicacionLink || "").trim();
-      if (!txt) err.ubicacion = "Necesitamos tu ubicación: tocá \"Usar mi ubicación actual\" o pegá el link de Google Maps.";
+      if (!txt) err.ubicacion = opciones.conMapa
+        ? "Marcá tu casa en el mapa y tocá \"Confirmar ubicación\" (o usá tu ubicación actual)."
+        : "Necesitamos tu ubicación: tocá \"Usar mi ubicación actual\" o pegá el link de Google Maps.";
       else if (!extraerLink(txt)) err.ubicacion = "Eso no es un link de Google Maps. En Maps tocá Compartir → Copiar link y pegalo acá.";
     }
     if (!d.pago) err.pago = "Elegí cómo vas a pagar.";
@@ -225,7 +227,7 @@
     L.push("TOTAL: " + formatPrecio(t.total), "");
     L.push("Medio de pago: " + nombrePago(d.pago));
     const obs = (d.observaciones || "").trim();
-    L.push("Observaciones: " + (obs || "Sin observaciones"), "");
+    L.push("Referencias: " + (obs || "Sin referencias"), "");
     if (hor) L.push("Sé que pasan a dejar el pedido " + hor.largo + " y va a haber alguien para recibirlo.");
     L.push("¡Espero la confirmación del pedido!");
     return L.join("\n").replace(/\u00a0/g, " ");
@@ -312,7 +314,7 @@
   function guardar() {
     store.set("carrito", S.carrito);
     store.set("carritoHora", Object.keys(S.carrito).length ? Date.now() : 0);
-    const { ubicacion, ...resto } = S.datos; // la ubicación no se guarda entre visitas
+    const { ubicacion, ubicacionGps, ...resto } = S.datos; // la ubicación confirmada no se guarda entre visitas
     store.set("datos", resto);
   }
 
@@ -549,6 +551,7 @@
 
     $("#pedidoVacio").hidden = !vacio || !$("#gracias").hidden;
     $("#pedidoLleno").hidden = vacio;
+    if (!vacio) prepararMapa();
     if (vacio) return;
 
     $("#lineas").innerHTML = t.lineas.map((l) => {
@@ -664,6 +667,7 @@
     $("#grupoPago").classList.toggle("invalido", !!S.errores.pago);
     $("#grupoFranja").classList.toggle("invalido", !!S.errores.franja);
     $("#grupoFecha").classList.toggle("invalido", !!S.errores.fecha);
+    $("#mapaWrap").classList.toggle("invalido", !!S.errores.ubicacion);
   }
 
   function finalizar(ev) {
@@ -671,15 +675,15 @@
     if (!t.lineas.length) { ev.preventDefault(); toast("Tu pedido está vacío."); return; }
     if (t.faltaParaPedidoMinimo > 0) { ev.preventDefault(); toast("Todavía no llegás al pedido mínimo."); return; }
     S.intento = true;
-    S.errores = validar(S.datos, cfg, { fechas });
+    S.errores = validar(S.datos, cfg, { fechas, conMapa: mapaActivo() });
     pintarErrores();
     const primero = Object.keys(S.errores)[0];
     if (primero) {
       ev.preventDefault();
       $("#resumenErrores").hidden = false;
       $("#resumenErrores").textContent = "Revisá los datos marcados para poder enviar el pedido.";
-      if (primero === "ubicacion") mostrarLink(true);
-      const el = primero === "pago" ? $('input[name="pago"]') : primero === "ubicacion" ? ($("#btnUbicacion:not([hidden])") || $("#f-ubicLink")) : primero === "localidad" ? ($("#f-localidad-otra:not([hidden])") || $("#f-localidad")) : $("#f-" + primero);
+      if (primero === "ubicacion" && !mapaActivo()) mostrarLink(true);
+      const el = primero === "pago" ? $('input[name="pago"]') : primero === "ubicacion" ? ($("#btnConfirmarUbic:not([hidden])") || $("#btnUbicacion:not([hidden])") || $("#f-ubicLink")) : primero === "localidad" ? ($("#f-localidad-otra:not([hidden])") || $("#f-localidad")) : $("#f-" + primero);
       if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ block: "center", behavior: suave() }); }
       return;
     }
@@ -777,7 +781,9 @@
         otra.hidden = !S.otraLocalidad;
         S.datos.localidad = S.otraLocalidad ? otra.value : sel.value;
         if (S.otraLocalidad) otra.focus();
+        recentrarMapa();
         cambio();
+        buscarDireccion();
       });
       otra.addEventListener("input", () => { S.datos.localidad = otra.value; cambio(); });
     } else {
@@ -865,51 +871,245 @@
     // Ubicación
     $("#ubicOpc").hidden = !!cfg.entregas.ubicacionObligatoria;
     $("#btnUbicacion").addEventListener("click", pedirUbicacion);
+    $("#btnConfirmarUbic").addEventListener("click", confirmarUbicacion);
+    $("#btnBuscarDir").addEventListener("click", () => buscarDireccion(true));
+    $("#f-direccion").addEventListener("change", () => buscarDireccion());
     $("#btnQuitarUbic").addEventListener("click", () => { S.datos.ubicacion = null; pintarUbicacion(); cambio(); });
     $("#btnPegarLink").addEventListener("click", () => { mostrarLink(true); $("#f-ubicLink").focus(); });
     const inp = $("#f-ubicLink");
     inp.value = S.datos.ubicacionLink || "";
     inp.addEventListener("input", () => { S.datos.ubicacionLink = inp.value; cambio(); });
-    if (S.datos.ubicacionLink) mostrarLink(true);
     pintarUbicacion();
   }
 
   function cambio() {
-    if (S.intento) { S.errores = validar(S.datos, cfg, { fechas }); pintarErrores(); if (!Object.keys(S.errores).length) $("#resumenErrores").hidden = true; }
+    if (typeof actualizarBotonBuscar === "function") actualizarBotonBuscar();
+    if (S.intento) { S.errores = validar(S.datos, cfg, { fechas, conMapa: mapaActivo() }); pintarErrores(); if (!Object.keys(S.errores).length) $("#resumenErrores").hidden = true; }
     guardar();
     pintarPedido();
   }
 
+  /* ---------- Mapa para marcar la casa ---------- */
+  // Mapa de OpenStreetMap (gratis, sin claves). Se carga recién cuando el cliente llega al formulario.
+  // Si el mapa no carga (sin internet, bloqueado), queda el GPS y pegar el link de Maps.
+  const LEAFLET = "vendor/leaflet/"; // copia propia de Leaflet 1.9.4 (licencia BSD-2)
+  const M = { estado: cfg.entregas.mapa ? "sin-cargar" : "apagado", mapa: null };
+
+  function mapaActivo() { return M.estado === "listo"; }
+
+  function prepararMapa() {
+    if (M.estado === "listo") { requestAnimationFrame(() => M.mapa && M.mapa.invalidateSize()); return; }
+    if (M.estado !== "sin-cargar") return;
+    M.estado = "cargando";
+    pintarUbicacion();
+    const css = document.createElement("link");
+    css.rel = "stylesheet"; css.href = LEAFLET + "leaflet.css";
+    document.head.appendChild(css);
+    const js = document.createElement("script");
+    js.src = LEAFLET + "leaflet.js";
+    const fallar = () => { if (M.estado === "cargando") { M.estado = "fallo"; pintarUbicacion(); } };
+    js.onload = () => { try { crearMapa(); } catch (e) { fallar(); } };
+    js.onerror = fallar;
+    setTimeout(fallar, 10000);
+    document.head.appendChild(js);
+  }
+
+  function centroLocalidad() {
+    const z = (cfg.envio.zonas || []).find((x) => normalizar(x.localidad) === normalizar(S.datos.localidad));
+    return z && z.centro ? z.centro : null;
+  }
+
+  // La casa que marcó en un pedido anterior (si es de la misma localidad que eligió ahora)
+  function ultimaCasa() {
+    const u = store.get("ultimaUbic", null);
+    if (!u || !u.lat) return null;
+    if (u.localidad && S.datos.localidad && normalizar(u.localidad) !== normalizar(S.datos.localidad)) return null;
+    return [+u.lat, +u.lng];
+  }
+
+  function guardarCasa() {
+    store.set("ultimaUbic", { lat: S.datos.ubicacion.lat, lng: S.datos.ubicacion.lng, localidad: S.datos.localidad || "" });
+  }
+
+  function centroInicial() {
+    if (S.datos.ubicacion) return { pos: [+S.datos.ubicacion.lat, +S.datos.ubicacion.lng], zoom: 18 };
+    const u = ultimaCasa();
+    if (u) return { pos: u, zoom: 17 };
+    const c = centroLocalidad();
+    if (c) return { pos: c, zoom: 15 };
+    const z = (cfg.envio.zonas || []).find((x) => x.centro);
+    return { pos: z ? z.centro : [-31.165, -64.322], zoom: 13 };
+  }
+
+  function crearMapa() {
+    const L = global.L;
+    if (!L) throw new Error("sin mapa");
+    const c = centroInicial();
+    M.mapa = L.map("mapa", { zoomControl: true, attributionControl: true, tap: true }).setView(c.pos, c.zoom);
+    const capa = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+    }).addTo(M.mapa);
+    // Si en 8 segundos no cargó ni una imagen del mapa, se pasa al plan B (GPS o link de Maps)
+    let cargoAlgo = false;
+    capa.on("tileload", () => { cargoAlgo = true; });
+    setTimeout(() => {
+      if (cargoAlgo || M.estado !== "listo") return;
+      M.estado = "fallo";
+      try { M.mapa.remove(); } catch (e) { /* nada */ }
+      M.mapa = null;
+      if (S.datos.ubicacion && !S.datos.ubicacionGps) S.datos.ubicacion = null;
+      pintarUbicacion();
+      cambio();
+    }, 8000);
+    const wrap = $("#mapaWrap");
+    // Al arrastrar, el pin "se levanta"; si ya estaba confirmada, hay que volver a confirmar
+    M.mapa.on("dragstart", () => {
+      M.arrastre = Date.now();
+      wrap.classList.add("moviendo");
+      if (S.datos.ubicacion) { S.datos.ubicacion = null; pintarUbicacion(); cambio(); }
+    });
+    M.mapa.on("dragend", () => wrap.classList.remove("moviendo"));
+    M.estado = "listo";
+    pintarUbicacion();
+    requestAnimationFrame(() => M.mapa.invalidateSize());
+    buscarDireccion();
+  }
+
+  /* Buscar en el mapa la dirección que escribió el cliente (OpenStreetMap / Nominatim, gratis).
+     Se busca solo al terminar de escribir (no letra por letra) y como máximo una vez por segundo.
+     El resultado mueve el mapa, pero igual hay que tocar "Confirmar ubicación": doble confirmación. */
+  const B = { ultima: "", hora: 0, pedido: 0 };
+
+  function cajaZona() {
+    const cs = (cfg.envio.zonas || []).filter((z) => z.centro).map((z) => z.centro);
+    if (!cs.length) return null;
+    const lats = cs.map((c) => c[0]), lngs = cs.map((c) => c[1]);
+    const m = 0.06; // margen alrededor de las localidades
+    return [Math.min(...lngs) - m, Math.max(...lats) + m, Math.max(...lngs) + m, Math.min(...lats) - m].map((n) => n.toFixed(4)).join(",");
+  }
+
+  function actualizarBotonBuscar() {
+    $("#btnBuscarDir").hidden = !!S.datos.ubicacion || M.estado !== "listo" || (S.datos.direccion || "").trim().length < 4 || !(S.datos.localidad || "").trim();
+  }
+
+  function buscarDireccion(forzar) {
+    if (!mapaActivo() || (S.datos.ubicacion && !forzar)) return;
+    const dir = (S.datos.direccion || "").trim(), loc = (S.datos.localidad || "").trim();
+    if (dir.length < 4 || !loc) return;
+    const q = dir + ", " + loc + ", Córdoba, Argentina";
+    if (q === B.ultima && !forzar) return;
+    B.ultima = q;
+    const nro = ++B.pedido;
+    const st = $("#ubicEstado");
+    st.textContent = "Buscando tu dirección en el mapa…";
+    setTimeout(() => {
+      if (nro !== B.pedido) return; // ya hay una búsqueda más nueva
+      B.hora = Date.now();
+      const arrastroAntes = M.arrastre || 0;
+      const caja = cajaZona();
+      const urlBase = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ar&accept-language=es" +
+        (caja ? "&bounded=1&viewbox=" + caja : "") + "&q=";
+      const pedir = (texto) => fetch(urlBase + encodeURIComponent(texto), { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+      const mover = (r, msg) => {
+        if (nro !== B.pedido || !mapaActivo() || S.datos.ubicacion) return true;
+        if ((M.arrastre || 0) !== arrastroAntes) return true; // el cliente ya movió el mapa: no se lo pisamos
+        M.mapa.setView([+r.lat, +r.lon], r.zoom || 18);
+        st.textContent = msg;
+        return true;
+      };
+      // Sin altura en el mapa: se busca solo la calle ("Cavalotti 417" -> "Cavalotti")
+      const soloCalle = dir.replace(/\s+(?:(?:n[°º.]?|nro\.?|n[uú]mero)\s*)?\d+\s*$/i, "").trim();
+      pedir(q)
+        .then((res) => {
+          if (res && res[0]) return mover(res[0], "Encontramos tu dirección. Revisá que el pin esté justo en tu casa (si no, mové el mapa) y tocá Confirmar ubicación.");
+          if (!soloCalle || soloCalle === dir) return false;
+          // Nominatim pide como máximo una consulta por segundo
+          return new Promise((ok) => setTimeout(ok, 1100)).then(() => {
+            if (nro !== B.pedido) return true;
+            B.hora = Date.now();
+            return pedir(soloCalle + ", " + loc + ", Córdoba, Argentina").then((res2) =>
+              res2 && res2[0] ? mover(Object.assign({}, res2[0], { zoom: 17 }), "Encontramos la calle, pero no la altura exacta. Mové el mapa hasta que el pin quede en tu casa y tocá Confirmar ubicación.") : false);
+          });
+        })
+        .then((encontro) => {
+          if (encontro || nro !== B.pedido || S.datos.ubicacion) return;
+          st.textContent = "No encontramos esa dirección en el mapa. Mové el mapa hasta tu casa y tocá Confirmar ubicación.";
+        })
+        .catch(() => {
+          if (nro !== B.pedido || S.datos.ubicacion) return;
+          st.textContent = "No pudimos buscar la dirección. Mové el mapa hasta tu casa y tocá Confirmar ubicación.";
+        });
+    }, Math.max(0, 1100 - (Date.now() - B.hora)));
+  }
+
+  // Si eligen otra localidad y todavía no confirmaron, el mapa va a esa localidad
+  function recentrarMapa() {
+    if (!mapaActivo() || S.datos.ubicacion) return;
+    const u = ultimaCasa();
+    if (u) { M.mapa.setView(u, 17); return; }
+    const c = centroLocalidad();
+    if (c) M.mapa.setView(c, 15);
+  }
+
+  function confirmarUbicacion() {
+    if (!mapaActivo()) return;
+    const c = M.mapa.getCenter();
+    S.datos.ubicacion = { lat: c.lat.toFixed(6), lng: c.lng.toFixed(6) };
+    S.datos.ubicacionGps = false;
+    guardarCasa();
+    pintarUbicacion();
+    cambio();
+  }
+
   function pedirUbicacion() {
     const st = $("#ubicEstado");
-    if (!("geolocation" in navigator)) { st.textContent = "Tu navegador no permite compartir la ubicación. Podés pegar el link de Google Maps acá abajo."; mostrarLink(true); return; }
+    const sinGps = mapaActivo()
+      ? "No pudimos tomar tu ubicación (puede que el permiso esté bloqueado). Mové el mapa hasta tu casa y tocá Confirmar ubicación."
+      : "No pudimos tomar tu ubicación (puede que el permiso esté bloqueado). Pegá el link de Google Maps de tu casa acá abajo.";
+    if (!("geolocation" in navigator)) { st.textContent = sinGps; if (!mapaActivo()) mostrarLink(true); return; }
     st.textContent = "Buscando tu ubicación…";
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        S.datos.ubicacion = { lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) };
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        S.datos.ubicacion = { lat: lat.toFixed(6), lng: lng.toFixed(6) };
+        S.datos.ubicacionGps = true;
+        guardarCasa();
+        if (mapaActivo()) M.mapa.setView([lat, lng], 18);
         pintarUbicacion();
-        actualizarLinkWA();
+        cambio();
       },
-      () => {
-        st.textContent = "No pudimos tomar tu ubicación (puede que el permiso esté bloqueado). Podés pegar el link de Google Maps acá abajo, o con la dirección alcanza.";
-        mostrarLink(true);
-      },
+      () => { st.textContent = sinGps; if (!mapaActivo()) mostrarLink(true); },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
     );
   }
 
   function mostrarLink(si) {
-    $("#ubicLinkBox").hidden = !si || !!S.datos.ubicacion;
-    $("#btnPegarLink").hidden = si || !!S.datos.ubicacion;
+    // Pegar un link de Maps es solo el plan B cuando el mapa no está disponible
+    const conMapa = M.estado === "listo" || M.estado === "cargando";
+    $("#ubicLinkBox").hidden = conMapa || !si || !!S.datos.ubicacion;
+    $("#btnPegarLink").hidden = conMapa || si || !!S.datos.ubicacion;
   }
 
   function pintarUbicacion() {
     const ok = !!S.datos.ubicacion;
-    $("#btnUbicacion").hidden = ok;
+    const conMapa = M.estado === "listo" || M.estado === "cargando";
+    $("#mapaWrap").hidden = !conMapa;
+    $("#mapaWrap").classList.toggle("ok", ok);
     $("#ubicOk").hidden = !ok;
-    $("#ubicEstado").textContent = ok ? "" : cfg.entregas.ubicacionObligatoria
+    $("#btnConfirmarUbic").hidden = ok || M.estado !== "listo";
+    actualizarBotonBuscar();
+    $("#ayudaDir").hidden = !conMapa;
+    $("#btnUbicacion").hidden = ok && !conMapa;
+    let txt;
+    if (ok) txt = conMapa ? "Si el pin no quedó justo en tu casa, mové el mapa y volvé a confirmar." : "";
+    else if (M.estado === "cargando") txt = "Cargando el mapa…";
+    else if (conMapa) txt = "Mové el mapa hasta que el pin quede sobre tu casa y tocá Confirmar ubicación. También podés usar tu ubicación actual.";
+    else txt = cfg.entregas.ubicacionObligatoria
       ? "Así el repartidor llega directo a tu casa. Si ahora no estás en tu casa, pegá el link de Maps de la dirección de entrega."
       : "Ayuda al repartidor a encontrar tu casa.";
+    $("#ubicEstado").textContent = txt;
     mostrarLink(!$("#ubicLinkBox").hidden || !!S.datos.ubicacionLink);
   }
 

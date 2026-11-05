@@ -109,11 +109,12 @@ window.TIENDA_CONFIG = {
     // true  = aparece "Otra localidad" con aviso de fuera de zona.
     permitirOtraLocalidad: false,
     zonas: [
-      { localidad: "Río Ceballos" },
-      { localidad: "Unquillo" },
-      { localidad: "Villa Allende" },
-      { localidad: "Salsipuedes" },
-      { localidad: "Mendiolaza" },
+      // centro: dónde arranca el mapa cuando el cliente elige esa localidad
+      { localidad: "Río Ceballos", centro: [-31.1650, -64.3226] },
+      { localidad: "Unquillo", centro: [-31.2306, -64.3165] },
+      { localidad: "Villa Allende", centro: [-31.2944, -64.2950] },
+      { localidad: "Salsipuedes", centro: [-31.1373, -64.2953] },
+      { localidad: "Mendiolaza", centro: [-31.2667, -64.3011] },
     ],
   },
 
@@ -132,6 +133,8 @@ window.TIENDA_CONFIG = {
     diasReparto: [],
     // Ubicación en el mapa obligatoria (GPS del celular o link de Google Maps)
     ubicacionObligatoria: true,
+    // Mapa con pin para marcar la casa (OpenStreetMap, gratis). false = solo GPS o link de Maps
+    mapa: true,
 
     // Horario de reparto: se le muestra al cliente y va en el mensaje de WhatsApp.
     // null = no se muestra horario.

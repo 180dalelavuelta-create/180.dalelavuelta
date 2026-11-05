@@ -38,7 +38,7 @@ Opcional: `entregas.franjas` (ej. `["10 a 12 h", "12 a 14 h"]`) para que el clie
 
 ## Ubicación del cliente
 
-"Usar mi ubicación actual" toma el GPS del celular (funciona en la web publicada con https; el navegador pide permiso). Si el cliente no da permiso, puede pegar el link de Google Maps. En los dos casos el link sale en el mensaje de WhatsApp.
+Obligatoria (`entregas.ubicacionObligatoria`). El cliente escribe su dirección, el mapa la busca solo (OpenStreetMap, gratis) y él confirma el pin sobre su casa; también puede usar el GPS. Si el mapa no carga, puede pegar un link de Google Maps. Al WhatsApp llegan la dirección escrita, el link con el punto exacto y las referencias (opcional). El centro de cada localidad se configura en `envio.zonas` (`centro`). La librería del mapa está en `vendor/leaflet` (Leaflet 1.9.4, licencia BSD-2).
 
 ## Stock
 

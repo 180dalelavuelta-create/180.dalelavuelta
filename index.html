@@ -251,6 +251,21 @@ body.hero-visible .marca-texto { opacity: 1; transition: opacity .16s ease .14s;
 .ubic-link { display: grid; gap: 6px; padding: 12px; border-radius: 8px; background: var(--papel); border: 1px solid var(--linea); }
 .ubic-link label { font-weight: 600; font-size: .92rem; }
 .ubic-link a { font-weight: 600; }
+/* Mapa con pin fijo en el centro: el cliente mueve el mapa hasta que el pin quede en su casa */
+.mapa-wrap { position: relative; height: 260px; border-radius: 10px; overflow: hidden; border: 1px solid #cfc7bd; background: #e9e4dc; isolation: isolate; }
+.mapa { position: absolute; inset: 0; z-index: 0; }
+.mapa-pin { position: absolute; left: 50%; top: 50%; width: 34px; height: 46px; margin: -46px 0 0 -17px; color: var(--tinta); z-index: 500; pointer-events: none; transition: transform .15s ease; }
+.mapa-pin svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
+.mapa-sombra { position: absolute; left: 50%; top: 50%; width: 12px; height: 5px; margin: -2px 0 0 -6px; border-radius: 50%; background: rgba(0,0,0,.25); z-index: 499; pointer-events: none; }
+.mapa-wrap.moviendo .mapa-pin { transform: translateY(-8px); }
+.mapa-wrap.ok { border-color: var(--wa); box-shadow: inset 0 0 0 1px var(--wa); }
+.mapa-wrap.ok .mapa-pin { color: var(--wa); }
+.invalido .mapa-wrap, .mapa-wrap.invalido { border-color: var(--error); box-shadow: inset 0 0 0 1px var(--error); }
+.ubic-acciones { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.btn-confirmar { min-height: 48px; padding: 0 22px; border-radius: 999px; border: 0; background: var(--tinta); color: var(--papel); font-weight: 700; font-size: 1rem; cursor: pointer; }
+.btn-confirmar:hover { background: #2b2622; }
+.leaflet-container { font: inherit; }
+.leaflet-control-attribution { font-size: 10px; }
 .sin-foto { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding-top: 34px; background: var(--papel-2); }
 .card-foto .sin-foto img { width: 38%; height: auto; opacity: .22; mix-blend-mode: multiply; }
 .sin-foto span { font-size: .78rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--tinta-2); }
@@ -484,7 +499,8 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
               </div>
               <div class="campo">
                 <label for="f-direccion">Dirección de entrega</label>
-                <input id="f-direccion" type="text" autocomplete="street-address" placeholder="Calle y número" aria-describedby="err-direccion">
+                <input id="f-direccion" type="text" autocomplete="street-address" placeholder="Calle y número" aria-describedby="err-direccion ayudaDir">
+                <p class="ayuda" id="ayudaDir" hidden>La vamos a buscar en el mapa de abajo.</p>
                 <p class="error" id="err-direccion" hidden></p>
               </div>
               <div class="campo">
@@ -497,12 +513,21 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
                 <span class="lbl">Ubicación en el mapa <span class="opc" id="ubicOpc">(opcional)</span></span>
                 <div class="ubic">
                   <button type="button" class="btn-borde" id="btnUbicacion">
-                    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/></svg>
+                    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 2v3M12 19v3M2 12h3M19 12h3M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm0-3.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/></svg>
                     Usar mi ubicación actual
                   </button>
-                  <span class="ubic-ok" id="ubicOk" hidden>✓ Ubicación agregada <button type="button" id="btnQuitarUbic">Quitar</button></span>
+                </div>
+                <div class="mapa-wrap" id="mapaWrap" hidden>
+                  <div class="mapa" id="mapa" role="application" aria-label="Mapa: mové el mapa hasta que el pin quede sobre tu casa"></div>
+                  <span class="mapa-pin" aria-hidden="true"><svg viewBox="0 0 32 44"><path d="M16 1C7.7 1 1 7.6 1 15.8 1 27 16 43 16 43s15-16 15-27.2C31 7.6 24.3 1 16 1Z" fill="currentColor" stroke="#fff" stroke-width="2"/><circle cx="16" cy="15.5" r="5.5" fill="#fff"/></svg></span>
+                  <span class="mapa-sombra" aria-hidden="true"></span>
                 </div>
                 <p class="ayuda" id="ubicEstado" aria-live="polite"></p>
+                <div class="ubic-acciones">
+                  <button type="button" class="btn-confirmar" id="btnConfirmarUbic" hidden>Confirmar ubicación</button>
+                  <button type="button" class="link-btn" id="btnBuscarDir" hidden>Buscar mi dirección en el mapa</button>
+                  <span class="ubic-ok" id="ubicOk" hidden>✓ Ubicación confirmada <button type="button" id="btnQuitarUbic">Cambiar</button></span>
+                </div>
                 <button type="button" class="link-btn" id="btnPegarLink">Prefiero pegar un link de Google Maps</button>
                 <div class="ubic-link" id="ubicLinkBox" hidden>
                   <label for="f-ubicLink">Link de Google Maps</label>
@@ -510,6 +535,10 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
                   <p class="ayuda" id="ayudaLink">En Google Maps buscá tu casa, tocá <strong>Compartir</strong> → <strong>Copiar link</strong> y pegalo acá. <a href="https://www.google.com/maps" target="_blank" rel="noopener">Abrir Google Maps</a></p>
                 </div>
                 <p class="error" id="err-ubicacion" hidden></p>
+              </div>
+              <div class="campo">
+                <label for="f-observaciones">Referencias para encontrar tu casa <span class="opc">(opcional)</span></label>
+                <textarea id="f-observaciones" rows="2" maxlength="300" placeholder="Ej.: portón verde, timbre 2, casa al fondo, al lado del kiosco"></textarea>
               </div>
               <div class="fila-2">
                 <div class="campo" id="grupoFecha" hidden>
@@ -526,10 +555,6 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
                 <div class="horas" id="opcionesFranja"></div>
                 <p class="error" id="err-franja" hidden></p>
               </fieldset>
-              <div class="campo">
-                <label for="f-observaciones">Referencias u observaciones <span class="opc">(opcional)</span></label>
-                <textarea id="f-observaciones" rows="2" placeholder="Ej.: portón verde, timbre 2"></textarea>
-              </div>
             </div>
 
             <fieldset id="grupoPago">
@@ -572,7 +597,7 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="config.js?v=53dc87ab"></script>
-<script src="app.js?v=83600382"></script>
+<script src="config.js?v=807ab2cc"></script>
+<script src="app.js?v=169b1bc6"></script>
 </body>
 </html>
