@@ -783,6 +783,7 @@
         if (S.otraLocalidad) otra.focus();
         recentrarMapa();
         cambio();
+        buscarDireccion();
       });
       otra.addEventListener("input", () => { S.datos.localidad = otra.value; cambio(); });
     } else {
@@ -871,6 +872,8 @@
     $("#ubicOpc").hidden = !!cfg.entregas.ubicacionObligatoria;
     $("#btnUbicacion").addEventListener("click", pedirUbicacion);
     $("#btnConfirmarUbic").addEventListener("click", confirmarUbicacion);
+    $("#btnBuscarDir").addEventListener("click", () => buscarDireccion(true));
+    $("#f-direccion").addEventListener("change", () => buscarDireccion());
     $("#btnQuitarUbic").addEventListener("click", () => { S.datos.ubicacion = null; pintarUbicacion(); cambio(); });
     $("#btnPegarLink").addEventListener("click", () => { mostrarLink(true); $("#f-ubicLink").focus(); });
     const inp = $("#f-ubicLink");
@@ -880,6 +883,7 @@
   }
 
   function cambio() {
+    if (typeof actualizarBotonBuscar === "function") actualizarBotonBuscar();
     if (S.intento) { S.errores = validar(S.datos, cfg, { fechas, conMapa: mapaActivo() }); pintarErrores(); if (!Object.keys(S.errores).length) $("#resumenErrores").hidden = true; }
     guardar();
     pintarPedido();
@@ -961,6 +965,7 @@
     const wrap = $("#mapaWrap");
     // Al arrastrar, el pin "se levanta"; si ya estaba confirmada, hay que volver a confirmar
     M.mapa.on("dragstart", () => {
+      M.arrastre = Date.now();
       wrap.classList.add("moviendo");
       if (S.datos.ubicacion) { S.datos.ubicacion = null; pintarUbicacion(); cambio(); }
     });
@@ -968,6 +973,60 @@
     M.estado = "listo";
     pintarUbicacion();
     requestAnimationFrame(() => M.mapa.invalidateSize());
+    buscarDireccion();
+  }
+
+  /* Buscar en el mapa la dirección que escribió el cliente (OpenStreetMap / Nominatim, gratis).
+     Se busca solo al terminar de escribir (no letra por letra) y como máximo una vez por segundo.
+     El resultado mueve el mapa, pero igual hay que tocar "Confirmar ubicación": doble confirmación. */
+  const B = { ultima: "", hora: 0, pedido: 0 };
+
+  function cajaZona() {
+    const cs = (cfg.envio.zonas || []).filter((z) => z.centro).map((z) => z.centro);
+    if (!cs.length) return null;
+    const lats = cs.map((c) => c[0]), lngs = cs.map((c) => c[1]);
+    const m = 0.06; // margen alrededor de las localidades
+    return [Math.min(...lngs) - m, Math.max(...lats) + m, Math.max(...lngs) + m, Math.min(...lats) - m].map((n) => n.toFixed(4)).join(",");
+  }
+
+  function actualizarBotonBuscar() {
+    $("#btnBuscarDir").hidden = !!S.datos.ubicacion || M.estado !== "listo" || (S.datos.direccion || "").trim().length < 4 || !(S.datos.localidad || "").trim();
+  }
+
+  function buscarDireccion(forzar) {
+    if (!mapaActivo() || (S.datos.ubicacion && !forzar)) return;
+    const dir = (S.datos.direccion || "").trim(), loc = (S.datos.localidad || "").trim();
+    if (dir.length < 4 || !loc) return;
+    const q = dir + ", " + loc + ", Córdoba, Argentina";
+    if (q === B.ultima && !forzar) return;
+    B.ultima = q;
+    const nro = ++B.pedido;
+    const st = $("#ubicEstado");
+    st.textContent = "Buscando tu dirección en el mapa…";
+    setTimeout(() => {
+      if (nro !== B.pedido) return; // ya hay una búsqueda más nueva
+      B.hora = Date.now();
+      const arrastroAntes = M.arrastre || 0;
+      const caja = cajaZona();
+      const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ar&accept-language=es" +
+        (caja ? "&bounded=1&viewbox=" + caja : "") + "&q=" + encodeURIComponent(q);
+      fetch(url, { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+        .then((res) => {
+          if (nro !== B.pedido || !mapaActivo() || S.datos.ubicacion) return;
+          const r = res && res[0];
+          if (r && (M.arrastre || 0) === arrastroAntes) {
+            M.mapa.setView([+r.lat, +r.lon], 18);
+            st.textContent = "Encontramos tu dirección. Revisá que el pin esté justo en tu casa (si no, mové el mapa) y tocá Confirmar ubicación.";
+          } else if (!r) {
+            st.textContent = "No encontramos esa dirección exacta en el mapa. Mové el mapa hasta tu casa y tocá Confirmar ubicación.";
+          }
+        })
+        .catch(() => {
+          if (nro !== B.pedido || S.datos.ubicacion) return;
+          st.textContent = "No pudimos buscar la dirección. Mové el mapa hasta tu casa y tocá Confirmar ubicación.";
+        });
+    }, Math.max(0, 1100 - (Date.now() - B.hora)));
   }
 
   // Si eligen otra localidad y todavía no confirmaron, el mapa va a esa localidad
@@ -1025,6 +1084,8 @@
     $("#mapaWrap").classList.toggle("ok", ok);
     $("#ubicOk").hidden = !ok;
     $("#btnConfirmarUbic").hidden = ok || M.estado !== "listo";
+    actualizarBotonBuscar();
+    $("#ayudaDir").hidden = !conMapa;
     $("#btnUbicacion").hidden = ok && !conMapa;
     let txt;
     if (ok) txt = conMapa ? "Si el pin no quedó justo en tu casa, mové el mapa y volvé a confirmar." : "";

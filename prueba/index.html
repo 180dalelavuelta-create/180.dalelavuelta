@@ -501,7 +501,8 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
               </div>
               <div class="campo">
                 <label for="f-direccion">Dirección de entrega</label>
-                <input id="f-direccion" type="text" autocomplete="street-address" placeholder="Calle y número" aria-describedby="err-direccion">
+                <input id="f-direccion" type="text" autocomplete="street-address" placeholder="Calle y número" aria-describedby="err-direccion ayudaDir">
+                <p class="ayuda" id="ayudaDir" hidden>La vamos a buscar en el mapa de abajo.</p>
                 <p class="error" id="err-direccion" hidden></p>
               </div>
               <div class="campo">
@@ -526,6 +527,7 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
                 <p class="ayuda" id="ubicEstado" aria-live="polite"></p>
                 <div class="ubic-acciones">
                   <button type="button" class="btn-confirmar" id="btnConfirmarUbic" hidden>Confirmar ubicación</button>
+                  <button type="button" class="link-btn" id="btnBuscarDir" hidden>Buscar mi dirección en el mapa</button>
                   <span class="ubic-ok" id="ubicOk" hidden>✓ Ubicación confirmada <button type="button" id="btnQuitarUbic">Cambiar</button></span>
                 </div>
                 <button type="button" class="link-btn" id="btnPegarLink">Prefiero pegar un link de Google Maps</button>
@@ -598,6 +600,6 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="config.js?v=807ab2cc"></script>
-<script src="app.js?v=74da29ab"></script>
+<script src="app.js?v=23429281"></script>
 </body>
 </html>
