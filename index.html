@@ -99,6 +99,23 @@ h1, h2, h3 { font-family: var(--f-display); font-style: italic; font-weight: 800
 .hero-logo { margin: 0; line-height: 0; }
 .hero-logo img { width: min(74vw, 340px); height: auto; mix-blend-mode: multiply; }
 .hero .sub { font-size: 1.08rem; color: var(--tinta-2); margin: 18px 0 0; max-width: 32ch; }
+/* Próximas entregas: la primera como calendario grande, las siguientes más chicas */
+.entregas { margin-top: 22px; width: 100%; max-width: 380px; display: grid; gap: 10px; text-align: left; }
+.ent-principal { display: flex; align-items: center; gap: 16px; padding: 14px 20px 14px 14px; border-radius: 16px; background: var(--tinta); color: var(--papel); }
+.ent-sig { display: flex; align-items: center; gap: 12px; padding: 9px 16px 9px 10px; border-radius: 12px; border: 1px solid var(--linea); background: var(--papel); margin-inline: 14px; }
+.cal { flex: none; width: 66px; border-radius: 10px; overflow: hidden; background: var(--papel); color: var(--tinta); text-align: center; }
+.cal-mes { display: block; background: var(--dorado); color: #fff; font-size: .72rem; font-weight: 800; letter-spacing: .14em; line-height: 1; padding: 5px 0 4px; }
+.cal-dia { display: block; font-family: var(--f-display); font-style: italic; font-weight: 800; font-size: 2.5rem; line-height: 1; padding: 4px 4px 6px 0; font-variant-numeric: tabular-nums; }
+.cal-chico { width: 44px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--linea); }
+.cal-chico .cal-mes { font-size: .6rem; padding: 4px 0 3px; }
+.cal-chico .cal-dia { font-size: 1.55rem; padding: 2px 3px 4px 0; }
+.ent-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ent-label { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--tinta-2); }
+.ent-principal .ent-label { color: #f0c79f; }
+.ent-fecha { font-family: var(--f-display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 1.6rem; line-height: 1; letter-spacing: .005em; }
+.ent-sig .ent-fecha { font-size: 1.12rem; color: var(--tinta); }
+.ent-hora { display: inline-flex; align-items: center; gap: 6px; font-size: .92rem; font-weight: 600; color: #e4ddd4; }
+.ent-hora svg { width: 16px; height: 16px; flex: none; }
 .beneficios { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .beneficios li { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 7px 14px; border-radius: 999px; background: var(--dorado-tinte); color: var(--dorado); font-weight: 700; font-size: .92rem; line-height: 1.3; text-align: center; text-wrap: balance; max-width: 100%; }
 .beneficios li svg { width: 18px; height: 18px; flex: none; }
@@ -235,6 +252,15 @@ body.hero-visible .marca-texto { opacity: 1; transition: opacity .16s ease .14s;
 .ubic-link label { font-weight: 600; font-size: .92rem; }
 .ubic-link a { font-weight: 600; }
 .fecha-fija { text-wrap: pretty; }
+.fechas-op { display: grid; gap: 8px; }
+.fecha-op { display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 12px; border: 1px solid #cfc7bd; border-radius: 10px; background: var(--papel); cursor: pointer; }
+.fecha-op input { width: 20px; height: 20px; margin: 0; accent-color: var(--tinta); flex: none; }
+.fecha-op:has(input:checked) { border-color: var(--tinta); box-shadow: inset 0 0 0 1px var(--tinta); }
+.fo-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.fo-txt strong { font-weight: 700; }
+.fo-txt small { color: var(--tinta-2); font-size: .85rem; }
+.fo-tag { flex: none; background: var(--dorado); color: #fff; font-size: .7rem; font-weight: 700; letter-spacing: .04em; border-radius: 999px; padding: 3px 9px; }
+.invalido .fecha-op { border-color: var(--error); }
 .fecha-fija { margin: 0; padding: 12px 14px; border-radius: 8px; background: var(--papel); border: 1px solid var(--linea); font-weight: 700; }
 .error { margin: 0; color: var(--error); font-size: .88rem; font-weight: 600; }
 .ayuda { margin: 0; font-size: .85rem; color: var(--tinta-2); }
@@ -390,9 +416,9 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
     <div class="envase">
       <h1 class="hero-logo"><img id="heroLogo" src="img/logo.png" data-logo alt="180° Dale la vuelta. Milanesas a tu puerta" width="686" height="720" fetchpriority="high"></h1>
       <p class="sub">Milanesas de pollo hechas en Río Ceballos. Elegí, armá tu pedido y recibilo en casa.</p>
+      <div class="entregas" id="entregasHero" hidden></div>
       <ul class="beneficios">
         <li id="envioHero"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 6h11v9H3zM14 9h4l3 3v3h-7M7.5 18.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm10 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>Envío gratis en nuestra zona de reparto</li>
-        <li id="fechaHero" hidden></li>
         <li id="descHero" hidden></li>
       </ul>
       <p class="zonas-hero" id="zonasHero" hidden></p>
@@ -483,8 +509,8 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
               </div>
               <div class="fila-2">
                 <div class="campo" id="grupoFecha" hidden>
-                  <label for="f-fecha">Fecha de entrega</label>
-                  <select id="f-fecha" aria-describedby="err-fecha"></select>
+                  <span class="lbl" id="lblFecha">Fecha de entrega</span>
+                  <div class="fechas-op" id="fechasOp" role="radiogroup" aria-labelledby="lblFecha" aria-describedby="err-fecha" hidden></div>
                   <p class="fecha-fija" id="fechaFija" hidden></p>
                   <p class="ayuda" id="fechaAyuda" hidden>Asegurate de que haya alguien en ese horario para recibir.</p>
                   <p class="error" id="err-fecha" hidden></p>

@@ -124,7 +124,7 @@ window.TIENDA_CONFIG = {
     // SOLO estas (y no los días de reparto de abajo). Las fechas pasadas desaparecen solas.
     // Con una sola fecha, no hay que elegir: se muestra fija.
     // Para agregar otra: fechas: ["2026-10-17", "2026-10-24"],
-    fechas: ["2026-10-17"],
+    fechas: ["2026-11-07", "2026-11-14"],
 
     // Alternativa: días de reparto fijos cada semana (se usa si "fechas" está vacía).
     // 0=domingo 1=lunes 2=martes 3=miércoles 4=jueves 5=viernes 6=sábado

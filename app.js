@@ -114,7 +114,8 @@
         .map((v) => {
           const [y, m, dd] = v.split("-").map(Number);
           const f = new Date(y, m - 1, dd);
-          return { valor: v, etiqueta: DIAS[f.getDay()] + " " + dd + "/" + m, larga: DIAS[f.getDay()].toLowerCase() + " " + dd + " de " + MESES[m - 1] };
+          return { valor: v, etiqueta: DIAS[f.getDay()] + " " + dd + "/" + m, larga: DIAS[f.getDay()].toLowerCase() + " " + dd + " de " + MESES[m - 1],
+            dia: dd, mesCorto: MESES[m - 1].slice(0, 3).toUpperCase() };
         });
     }
     if (!e.diasReparto || !e.diasReparto.length) return [];
@@ -122,7 +123,8 @@
     for (let i = 0; i < 60 && out.length < (e.cantidadFechas || 6); i++) {
       const valor = iso(d);
       if (e.diasReparto.includes(d.getDay()) && !(e.fechasBloqueadas || []).includes(valor)) {
-        out.push({ valor, etiqueta: DIAS[d.getDay()] + " " + d.getDate() + "/" + (d.getMonth() + 1), larga: DIAS[d.getDay()].toLowerCase() + " " + d.getDate() + " de " + MESES[d.getMonth()] });
+        out.push({ valor, etiqueta: DIAS[d.getDay()] + " " + d.getDate() + "/" + (d.getMonth() + 1), larga: DIAS[d.getDay()].toLowerCase() + " " + d.getDate() + " de " + MESES[d.getMonth()],
+          dia: d.getDate(), mesCorto: MESES[d.getMonth()].slice(0, 3).toUpperCase() });
       }
       d.setDate(d.getDate() + 1);
     }
@@ -328,18 +330,23 @@
     }
     if (!cfg.envio.gratisEnZona) $("#envioHero").hidden = true;
 
-    // Próxima entrega en el hero
+    // Próximas entregas: la primera grande, las siguientes más chicas
     if (fechas.length) {
-      const h = $("#fechaHero");
-      h.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/></svg>' +
-        esc(sinCortes((fechas.length === 1 ? "Entrega: " : "Próxima entrega: ") + fechas[0].larga + (cfg.entregas.horario ? ", " + cfg.entregas.horario.corto : "")));
-      h.hidden = false;
-    }
-
-    if (fechas.length === 1 && cfg.entregas.horario) {
-      const g = $("#graciasEntrega");
-      g.textContent = sinCortes("El " + fechas[0].larga + ", " + cfg.entregas.horario.largo + ", pasamos a dejarte el pedido.");
-      g.hidden = false;
+      const hor = cfg.entregas.horario;
+      const [p, ...resto] = fechas.slice(0, 3);
+      let h =
+        '<div class="ent-principal">' + calendario(p) +
+        '<div class="ent-txt"><span class="ent-label">' + (fechas.length === 1 ? "Entrega" : "Próxima entrega") + "</span>" +
+        '<strong class="ent-fecha">' + esc(sinCortes(mayus(p.larga))) + "</strong>" +
+        (hor ? '<span class="ent-hora">' + ICONO_RELOJ + esc(sinCortes(hor.corto)) + "</span>" : "") +
+        "</div></div>";
+      for (const f of resto) {
+        h += '<div class="ent-sig">' + calendario(f, "cal-chico") +
+          '<div class="ent-txt"><span class="ent-label">Siguiente entrega</span>' +
+          '<strong class="ent-fecha">' + esc(sinCortes(mayus(f.larga))) + "</strong></div></div>";
+      }
+      $("#entregasHero").innerHTML = h;
+      $("#entregasHero").hidden = false;
     }
 
     // Descuento visible en hero/pago
@@ -355,6 +362,17 @@
     if (!cfg.productos.some((p) => p.tipo === "combo")) { $("#combos").hidden = true; $$("[data-nav-combos]").forEach((a) => { a.hidden = true; }); }
 
     pintarAviso();
+  }
+
+  const ICONO_RELOJ = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3 2"/></svg>';
+  function mayus(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function calendario(f, extra) {
+    return '<span class="cal' + (extra ? " " + extra : "") + '" aria-hidden="true"><span class="cal-mes">' + esc(f.mesCorto) + '</span><span class="cal-dia">' + f.dia + "</span></span>";
+  }
+
+  // Fecha que va a recibir el cliente (la única, o la que eligió)
+  function fechaElegida() {
+    return fechas.length === 1 ? fechas[0] : fechas.find((f) => f.valor === S.datos.fecha) || null;
   }
 
   function pintarAviso() {
@@ -629,6 +647,7 @@
     }
     $("#grupoPago").classList.toggle("invalido", !!S.errores.pago);
     $("#grupoFranja").classList.toggle("invalido", !!S.errores.franja);
+    $("#grupoFecha").classList.toggle("invalido", !!S.errores.fecha);
   }
 
   function finalizar(ev) {
@@ -697,6 +716,10 @@
     setTimeout(() => {
       $("#f-observaciones").value = "";
       $("#linkReabrir").href = href;
+      const f = fechaElegida();
+      const hor = cfg.entregas.horario;
+      $("#graciasEntrega").textContent = f ? sinCortes("El " + f.larga + (hor ? ", " + hor.largo : "") + ", pasamos a dejarte el pedido.") : "";
+      $("#graciasEntrega").hidden = !f;
       $("#gracias").hidden = false;
       actualizarCatalogo();
       pintarPedido();
@@ -740,7 +763,6 @@
     if (fechas.length === 1) {
       S.datos.fecha = fechas[0].valor; // una sola fecha: no hay nada que elegir
       $("#grupoFecha").hidden = false;
-      $("#f-fecha").hidden = true;
       $("#fechaFija").hidden = false;
       const hor = cfg.entregas.horario;
       $("#fechaFija").textContent = sinCortes(hor
@@ -749,15 +771,22 @@
       $("#fechaAyuda").hidden = !hor;
     } else if (cfg.entregas.pedirFecha && !fechas.length) {
       $("#grupoFecha").hidden = false;
-      $("#f-fecha").hidden = true;
       $("#fechaFija").hidden = false;
       $("#fechaFija").textContent = sinCortes("Te confirmamos la próxima fecha de entrega por WhatsApp." + (cfg.entregas.horario ? " Repartimos " + cfg.entregas.horario.largo + "." : ""));
     }
     if (fechas.length > 1) {
+      // Varias fechas: tarjetas para tocar. Viene marcada la más próxima.
+      if (!fechas.some((f) => f.valor === S.datos.fecha)) S.datos.fecha = fechas[0].valor;
+      const hor = cfg.entregas.horario;
       $("#grupoFecha").hidden = false;
-      $("#f-fecha").innerHTML = '<option value="">Elegí una fecha</option>' + fechas.map((f) => '<option value="' + f.valor + '">' + f.etiqueta + "</option>").join("");
-      $("#f-fecha").value = S.datos.fecha;
-      $("#f-fecha").addEventListener("change", () => { S.datos.fecha = $("#f-fecha").value; cambio(); });
+      $("#fechasOp").hidden = false;
+      $("#fechaAyuda").hidden = !hor;
+      $("#fechasOp").innerHTML = fechas.map((f, i) =>
+        '<label class="fecha-op"><input type="radio" name="fecha" value="' + f.valor + '"' + (i === 0 ? ' id="f-fecha"' : "") +
+        (f.valor === S.datos.fecha ? " checked" : "") + ">" + calendario(f, "cal-chico") +
+        '<span class="fo-txt"><strong>' + esc(sinCortes(mayus(f.larga))) + "</strong>" + (hor ? "<small>" + esc(sinCortes(hor.corto)) + "</small>" : "") + "</span>" +
+        (i === 0 ? '<span class="fo-tag">Próxima</span>' : "") + "</label>").join("");
+      $$('input[name="fecha"]').forEach((r) => r.addEventListener("change", () => { S.datos.fecha = r.value; cambio(); }));
     }
 
     // Horarios para recibir (varios a la vez)
