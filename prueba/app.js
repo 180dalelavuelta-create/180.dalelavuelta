@@ -1008,19 +1008,34 @@
       B.hora = Date.now();
       const arrastroAntes = M.arrastre || 0;
       const caja = cajaZona();
-      const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ar&accept-language=es" +
-        (caja ? "&bounded=1&viewbox=" + caja : "") + "&q=" + encodeURIComponent(q);
-      fetch(url, { headers: { Accept: "application/json" } })
-        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      const urlBase = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ar&accept-language=es" +
+        (caja ? "&bounded=1&viewbox=" + caja : "") + "&q=";
+      const pedir = (texto) => fetch(urlBase + encodeURIComponent(texto), { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+      const mover = (r, msg) => {
+        if (nro !== B.pedido || !mapaActivo() || S.datos.ubicacion) return true;
+        if ((M.arrastre || 0) !== arrastroAntes) return true; // el cliente ya movió el mapa: no se lo pisamos
+        M.mapa.setView([+r.lat, +r.lon], r.zoom || 18);
+        st.textContent = msg;
+        return true;
+      };
+      // Sin altura en el mapa: se busca solo la calle ("Cavalotti 417" -> "Cavalotti")
+      const soloCalle = dir.replace(/\s+(?:(?:n[°º.]?|nro\.?|n[uú]mero)\s*)?\d+\s*$/i, "").trim();
+      pedir(q)
         .then((res) => {
-          if (nro !== B.pedido || !mapaActivo() || S.datos.ubicacion) return;
-          const r = res && res[0];
-          if (r && (M.arrastre || 0) === arrastroAntes) {
-            M.mapa.setView([+r.lat, +r.lon], 18);
-            st.textContent = "Encontramos tu dirección. Revisá que el pin esté justo en tu casa (si no, mové el mapa) y tocá Confirmar ubicación.";
-          } else if (!r) {
-            st.textContent = "No encontramos esa dirección exacta en el mapa. Mové el mapa hasta tu casa y tocá Confirmar ubicación.";
-          }
+          if (res && res[0]) return mover(res[0], "Encontramos tu dirección. Revisá que el pin esté justo en tu casa (si no, mové el mapa) y tocá Confirmar ubicación.");
+          if (!soloCalle || soloCalle === dir) return false;
+          // Nominatim pide como máximo una consulta por segundo
+          return new Promise((ok) => setTimeout(ok, 1100)).then(() => {
+            if (nro !== B.pedido) return true;
+            B.hora = Date.now();
+            return pedir(soloCalle + ", " + loc + ", Córdoba, Argentina").then((res2) =>
+              res2 && res2[0] ? mover(Object.assign({}, res2[0], { zoom: 17 }), "Encontramos la calle, pero no la altura exacta. Mové el mapa hasta que el pin quede en tu casa y tocá Confirmar ubicación.") : false);
+          });
+        })
+        .then((encontro) => {
+          if (encontro || nro !== B.pedido || S.datos.ubicacion) return;
+          st.textContent = "No encontramos esa dirección en el mapa. Mové el mapa hasta tu casa y tocá Confirmar ubicación.";
         })
         .catch(() => {
           if (nro !== B.pedido || S.datos.ubicacion) return;
