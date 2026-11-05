@@ -47,6 +47,7 @@ window.TIENDA_CONFIG = {
                     pagos.transferencia.descuento.combinableConPromociones sea true)
      imagen:        ruta de la foto. null = se muestra sin foto
      etiqueta:      (opcional) texto corto sobre la foto, ej. "Promo"
+     proximamente:  (opcional) true = se muestra como "Próximamente" y todavía no se puede pedir
      comparaCon:    (opcional) muestra cuánto se ahorra frente a otro producto.
                     { id: "mila-1kg", cantidad: 2 } = "Ahorrás $X frente a 2 × Mila x kilo".
                     Se calcula solo con los precios cargados.
@@ -129,6 +130,9 @@ window.TIENDA_CONFIG = {
     // Alternativa: días de reparto fijos cada semana (se usa si "fechas" está vacía).
     // 0=domingo 1=lunes 2=martes 3=miércoles 4=jueves 5=viernes 6=sábado
     diasReparto: [],
+    // Ubicación en el mapa obligatoria (GPS del celular o link de Google Maps)
+    ubicacionObligatoria: true,
+
     // Horario de reparto: se le muestra al cliente y va en el mensaje de WhatsApp.
     // null = no se muestra horario.
     horario: { largo: "entre las 10 y las 14 h", corto: "de 10 a 14 h" },

@@ -43,7 +43,7 @@
   }
 
   function sePuedeComprar(prod, prueba) {
-    return !!prod && prod.disponible !== false && precioDe(prod, prueba) !== null && prod.stock !== 0;
+    return !!prod && !prod.proximamente && prod.disponible !== false && precioDe(prod, prueba) !== null && prod.stock !== 0;
   }
 
   function maximo(prod) {
@@ -162,6 +162,11 @@
       err.localidad = "Por ahora entregamos solo en las localidades de la lista.";
     if (opciones.fechas.length > 1 && !opciones.fechas.some((f) => f.valor === d.fecha)) err.fecha = "Elegí una fecha de entrega.";
     if (cfg.entregas.franjas.length && !(d.franjas && d.franjas.length)) err.franja = "Marcá al menos un horario en el que puedas recibir.";
+    if (cfg.entregas.ubicacionObligatoria && !(d.ubicacion && d.ubicacion.lat)) {
+      const txt = (d.ubicacionLink || "").trim();
+      if (!txt) err.ubicacion = "Necesitamos tu ubicación: tocá \"Usar mi ubicación actual\" o pegá el link de Google Maps.";
+      else if (!extraerLink(txt)) err.ubicacion = "Eso no es un link de Google Maps. En Maps tocá Compartir → Copiar link y pegalo acá.";
+    }
     if (!d.pago) err.pago = "Elegí cómo vas a pagar.";
     return err;
   }
@@ -238,7 +243,7 @@
 
   function pendientes(cfg) {
     const out = [];
-    const sinPrecio = cfg.productos.filter((p) => !(typeof p.precio === "number" && p.precio > 0));
+    const sinPrecio = cfg.productos.filter((p) => !p.proximamente && !(typeof p.precio === "number" && p.precio > 0));
     if (sinPrecio.length) out.push("Precios de: " + sinPrecio.map((p) => p.nombre).join(", "));
     if (!(cfg.envio.zonas || []).length) out.push("Localidades o barrios con reparto (envio.zonas)");
     const tr = cfg.pagos.transferencia;
@@ -285,9 +290,16 @@
     idPedido: store.get("idPedido", null),
     cantSel: {},
   };
-  const faltanPrecios = cfg.productos.some((p) => !(typeof p.precio === "number" && p.precio > 0));
+  const faltanPrecios = cfg.productos.some((p) => !p.proximamente && !(typeof p.precio === "number" && p.precio > 0));
   if (!faltanPrecios) S.prueba = false; // con todos los precios cargados, el modo prueba no hace falta
-  S.carrito = sanearCarrito(store.get("carrito", {}), cfg.productos, S.prueba);
+  // Un pedido armado y no enviado se guarda hasta 12 horas; después la página arranca vacía
+  const VENCE_CARRITO = 12 * 60 * 60 * 1000;
+  function leerCarrito() {
+    const hora = store.get("carritoHora", 0);
+    if (!hora || Date.now() - hora > VENCE_CARRITO) return {};
+    return store.get("carrito", {});
+  }
+  S.carrito = sanearCarrito(leerCarrito(), cfg.productos, S.prueba);
   const fechas = fechasDisponibles(cfg, new Date());
   if (S.datos.fecha && !fechas.some((f) => f.valor === S.datos.fecha)) S.datos.fecha = "";
   if (S.datos.pago === "transferencia" && !cfg.pagos.transferencia.habilitada) S.datos.pago = "";
@@ -299,6 +311,7 @@
 
   function guardar() {
     store.set("carrito", S.carrito);
+    store.set("carritoHora", Object.keys(S.carrito).length ? Date.now() : 0);
     const { ubicacion, ...resto } = S.datos; // la ubicación no se guarda entre visitas
     store.set("datos", resto);
   }
@@ -427,7 +440,8 @@
     else precioHtml = '<span class="precio">' + formatPrecio(precio) + "</span>" + (ejemplo ? '<span class="chip chip-ej">ejemplo</span>' : "");
 
     let accion;
-    if (agotado) accion = '<p class="nota-card">Sin stock por ahora. Consultanos por WhatsApp.</p>';
+    if (prod.proximamente) accion = '<p class="nota-card">Muy pronto vas a poder pedirla.</p>';
+    else if (agotado) accion = '<p class="nota-card">Sin stock por ahora. Consultanos por WhatsApp.</p>';
     else if (precio === null) accion = '<p class="nota-card">Todavía no está a la venta.</p>';
     else accion =
       '<div class="acciones">' + stepper(prod.id, sel, restante, "card", 1) +
@@ -436,10 +450,12 @@
         : '<button type="button" class="btn-agregar tope" disabled>Máximo ' + tope + " por pedido</button>") + "</div>" +
       '<p class="en-carrito">' + (enCarrito ? "En tu pedido: <strong>" + enCarrito + "</strong>" + (restante ? "" : " (máximo)") : "") + "</p>";
 
+    // Sin foto: un recuadro con el logo, para que la grilla quede pareja
     const img = prod.imagen
       ? '<img src="' + esc(prod.imagen) + '" alt="' + esc(prod.nombre) + '" loading="eager" decoding="async" width="900" height="675">'
-      : "";
-    const etiqueta = prod.etiqueta && !agotado ? '<span class="etiqueta">' + esc(prod.etiqueta) + "</span>" : "";
+      : '<span class="sin-foto"><img src="' + esc(cfg.marca.logo) + '" alt="" width="686" height="720"><span>Foto próximamente</span></span>';
+    const textoEtiqueta = prod.proximamente ? "Próximamente" : prod.etiqueta;
+    const etiqueta = textoEtiqueta && !agotado ? '<span class="etiqueta' + (prod.proximamente ? " etiqueta-pronto" : "") + '">' + esc(textoEtiqueta) + "</span>" : "";
     const ah = agotado ? null : ahorro(prod, cfg.productos, S.prueba);
     const ahorroHtml = ah ? '<p class="ahorro">¡Ahorrás ' + formatPrecio(ah.monto) + (prod.contenido ? " llevando " + esc(sinCortes(prod.contenido)) : "") + "!</p>" : "";
 
@@ -635,14 +651,14 @@
   }
 
   function pintarErrores() {
-    const campos = ["nombre", "telefono", "direccion", "localidad", "fecha", "franja", "ubicLink", "pago"];
+    const campos = ["nombre", "telefono", "direccion", "localidad", "fecha", "franja", "ubicacion", "pago"];
     for (const c of campos) {
       const box = $("#err-" + c);
       if (!box) continue;
       const msg = S.errores[c];
       box.textContent = msg || "";
       box.hidden = !msg;
-      const ctrl = c === "localidad" ? ($("#f-localidad-otra:not([hidden])") || $("#f-localidad")) : c === "pago" ? null : $("#f-" + c);
+      const ctrl = c === "localidad" ? ($("#f-localidad-otra:not([hidden])") || $("#f-localidad")) : c === "pago" ? null : c === "ubicacion" ? $("#f-ubicLink") : $("#f-" + c);
       if (ctrl) ctrl.setAttribute("aria-invalid", msg ? "true" : "false");
     }
     $("#grupoPago").classList.toggle("invalido", !!S.errores.pago);
@@ -662,7 +678,8 @@
       ev.preventDefault();
       $("#resumenErrores").hidden = false;
       $("#resumenErrores").textContent = "Revisá los datos marcados para poder enviar el pedido.";
-      const el = primero === "pago" ? $('input[name="pago"]') : primero === "localidad" ? ($("#f-localidad-otra:not([hidden])") || $("#f-localidad")) : $("#f-" + primero);
+      if (primero === "ubicacion") mostrarLink(true);
+      const el = primero === "pago" ? $('input[name="pago"]') : primero === "ubicacion" ? ($("#btnUbicacion:not([hidden])") || $("#f-ubicLink")) : primero === "localidad" ? ($("#f-localidad-otra:not([hidden])") || $("#f-localidad")) : $("#f-" + primero);
       if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ block: "center", behavior: suave() }); }
       return;
     }
@@ -713,18 +730,29 @@
     S.datos.observaciones = "";
     S.intento = false;
     guardar();
-    setTimeout(() => {
-      $("#f-observaciones").value = "";
-      $("#linkReabrir").href = href;
-      const f = fechaElegida();
-      const hor = cfg.entregas.horario;
-      $("#graciasEntrega").textContent = f ? sinCortes("El " + f.larga + (hor ? ", " + hor.largo : "") + ", pasamos a dejarte el pedido.") : "";
-      $("#graciasEntrega").hidden = !f;
-      $("#gracias").hidden = false;
-      actualizarCatalogo();
-      pintarPedido();
-      $("#pedido").scrollIntoView({ block: "start", behavior: suave() });
-    }, 0);
+    // La pantalla se actualiza en el mismo momento (no después): así, aunque el celular
+    // "congele" la página al abrir WhatsApp, al volver ya está vacía.
+    $("#f-observaciones").value = "";
+    $("#linkReabrir").href = href;
+    const f = fechaElegida();
+    const hor = cfg.entregas.horario;
+    $("#graciasEntrega").textContent = f ? sinCortes("El " + f.larga + (hor ? ", " + hor.largo : "") + ", pasamos a dejarte el pedido.") : "";
+    $("#graciasEntrega").hidden = !f;
+    $("#gracias").hidden = false;
+    actualizarCatalogo();
+    pintarPedido();
+    setTimeout(() => $("#pedido").scrollIntoView({ block: "start", behavior: suave() }), 0);
+  }
+
+  // Vuelve a leer el pedido guardado: al volver a la página, al volver de WhatsApp,
+  // o si el pedido cambió en otra pestaña. Siempre se muestra el pedido real.
+  function sincronizarPedido() {
+    const guardado = sanearCarrito(leerCarrito(), cfg.productos, S.prueba);
+    if (JSON.stringify(guardado) === JSON.stringify(S.carrito)) return;
+    S.carrito = guardado;
+    if (!Object.keys(guardado).length) S.idPedido = null;
+    actualizarCatalogo();
+    pintarPedido();
   }
 
   /* ---------- Formulario ---------- */
@@ -835,6 +863,7 @@
     });
 
     // Ubicación
+    $("#ubicOpc").hidden = !!cfg.entregas.ubicacionObligatoria;
     $("#btnUbicacion").addEventListener("click", pedirUbicacion);
     $("#btnQuitarUbic").addEventListener("click", () => { S.datos.ubicacion = null; pintarUbicacion(); cambio(); });
     $("#btnPegarLink").addEventListener("click", () => { mostrarLink(true); $("#f-ubicLink").focus(); });
@@ -878,7 +907,9 @@
     const ok = !!S.datos.ubicacion;
     $("#btnUbicacion").hidden = ok;
     $("#ubicOk").hidden = !ok;
-    $("#ubicEstado").textContent = ok ? "" : "Ayuda al repartidor a encontrar tu casa.";
+    $("#ubicEstado").textContent = ok ? "" : cfg.entregas.ubicacionObligatoria
+      ? "Así el repartidor llega directo a tu casa. Si ahora no estás en tu casa, pegá el link de Maps de la dirección de entrega."
+      : "Ayuda al repartidor a encontrar tu casa.";
     mostrarLink(!$("#ubicLinkBox").hidden || !!S.datos.ubicacionLink);
   }
 
@@ -927,6 +958,9 @@
 
   function montarEventos() {
     $("#form").addEventListener("submit", (e) => { e.preventDefault(); $("#btnFinalizar").click(); });
+    global.addEventListener("pageshow", (e) => { if (e.persisted) sincronizarPedido(); });
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") sincronizarPedido(); });
+    global.addEventListener("storage", (e) => { if (!e.key || e.key.indexOf("180dlv_carrito") === 0) sincronizarPedido(); });
     document.addEventListener("click", (e) => {
       const t = e.target.closest("button, a");
       if (!t) return;
