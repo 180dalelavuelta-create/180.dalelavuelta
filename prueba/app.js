@@ -462,18 +462,17 @@
     const ahorroHtml = ah ? '<p class="ahorro">¡Ahorrás ' + formatPrecio(ah.monto) + (prod.contenido ? " llevando " + esc(sinCortes(prod.contenido)) : "") + "!</p>" : "";
 
     if (prod.tipo === "combo") {
-      // "1 kg de milanesas" -> cantidad grande "1 kg" + "de milanesas" chico
-      const partes = (prod.incluye || []).map((txt) => {
+      // "1 kg de milanesas" -> "1 kg" destacado + "de milanesas"; desde el 2.º renglón con "+"
+      const lineas = (prod.incluye || []).map((txt, i) => {
         const m = String(txt).match(/^\s*([\d.,½]+\s*(?:kg|g|grs?|gramos|kilos?|u|unidades)?)\s+(.*)$/i);
-        return m
-          ? '<span class="cc-item"><b>' + esc(sinCortes(m[1])) + "</b><small>" + esc(m[2]) + "</small></span>"
-          : '<span class="cc-item"><small>' + esc(txt) + "</small></span>";
+        const cuerpo = m ? "<b>" + esc(sinCortes(m[1])) + "</b> " + esc(m[2]) : esc(txt);
+        return '<p class="cc-linea">' + (i ? '<span class="cc-mas" aria-hidden="true">+</span> ' : "") + cuerpo + "</p>";
       });
       return (
         '<article class="combo' + (comprable ? "" : " no-disp") + '" data-prod="' + prod.id + '">' +
         '<div class="combo-cuerpo">' +
-        '<div class="combo-comp"><span class="combo-tag">Combo</span>' + partes.join('<span class="cc-mas" aria-hidden="true">+</span>') + "</div>" +
-        '<div class="combo-compra"><div class="fila-precio">' + precioHtml + "</div>" + accion + "</div>" +
+        '<div class="combo-top"><span class="combo-tag">Combo</span><div class="fila-precio">' + precioHtml + "</div></div>" +
+        '<div class="combo-comp">' + lineas.join("") + "</div>" + accion +
         "</div></article>"
       );
     }
@@ -491,6 +490,7 @@
   function pintarCatalogo() {
     $("#gridProductos").innerHTML = cfg.productos.filter((p) => p.tipo !== "combo").map(tarjeta).join("");
     const combos = cfg.productos.filter((p) => p.tipo === "combo");
+    $("#gridCombos").classList.toggle("con-foto", !!(cfg.fotoCombos && combos.length));
     $("#gridCombos").innerHTML =
       (cfg.fotoCombos && combos.length
         ? '<div class="combos-foto"><img src="' + esc(cfg.fotoCombos) + '" alt="Milanesas de pollo y papas McCain de 180° Dale la vuelta" width="1200" height="960" loading="eager" decoding="async"></div>'

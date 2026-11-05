@@ -180,46 +180,31 @@ body.hero-visible .marca-texto { opacity: 1; transition: opacity .16s ease .14s;
 .st-val { min-width: 26px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* Combo: banda negra, la composición es la protagonista */
-.combo { background: var(--tinta); color: var(--papel); border-radius: var(--r); overflow: hidden; display: grid; }
-.combo .eyebrow { color: #cfc6bb; }
-.combo-cuerpo { padding: 22px 20px 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.combo h3 { font-size: clamp(2.4rem, 9vw, 3.2rem); }
-.combo .desc { color: #d9d1c7; }
-.incluye { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 0; }
-.incluye li { font-family: var(--f-display); font-style: italic; font-weight: 700; font-size: 1.55rem; text-transform: uppercase; padding: 8px 0; border-top: 1px solid #3a342f; }
-.incluye li:last-child { border-bottom: 1px solid #3a342f; }
-.combo .precio-pend, .combo .nota-card { color: #d9d1c7; }
-.combo .chip-ej { color: #d9d1c7; }
-.combo .chip-agotado { background: var(--papel); color: var(--tinta); }
-.combo .stepper { border-color: #4a433d; }
-.combo .st-btn:disabled { color: #6b625a; }
-.combo .btn-agregar { background: var(--papel); color: var(--tinta); border-color: var(--papel); }
-.combo .btn-agregar:hover { background: #ece6df; }
-.combo .btn-agregar.ok { background: transparent; color: var(--papel); }
-.combo .en-carrito { color: #f0c79f; }
-/* Combos: foto grande arriba y tarjetas negras con la cantidad destacada */
+/* Combos con papas: tarjetas claras y compactas, la foto acompaña (al costado en pantallas grandes) */
 #gridCombos { display: grid; gap: 14px; }
-.combos-foto { border-radius: var(--r); overflow: hidden; aspect-ratio: 16 / 10; max-width: 100%; background: var(--papel-2); }
+.combos-foto { border-radius: var(--r); overflow: hidden; aspect-ratio: 16 / 9; max-width: 100%; background: var(--papel-2); }
 .combos-foto img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 55%; }
-.combos-lista { display: grid; gap: 12px; }
-.combo .combo-cuerpo { padding: 18px 18px 12px; gap: 14px; }
-.combo-comp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
-.combo-tag { flex-basis: 100%; font-size: .7rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #f0c79f; }
-.cc-item { display: flex; flex-direction: column; min-width: 0; }
-.cc-item b { font-family: var(--f-display); font-style: italic; font-weight: 800; text-transform: none; font-size: 2.4rem; line-height: .95; letter-spacing: .005em; }
-.cc-item small { font-size: .88rem; color: #d9d1c7; }
-.cc-mas { font-family: var(--f-display); font-style: italic; font-weight: 800; font-size: 1.9rem; line-height: 1; color: #f0c79f; align-self: flex-start; margin-top: 2px; }
-.combo-compra { display: grid; gap: 10px; }
-.combo .precio { font-size: 1.7rem; }
-@media (min-width: 640px) {
-  .combo .combo-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 250px); align-items: center; gap: 18px; }
-}
-.combo-foto { aspect-ratio: 4 / 3; max-width: 100%; }
-.combo-foto img { width: 100%; height: 100%; object-fit: cover; }
-@media (min-width: 720px) {
-  .combo.con-foto { grid-template-columns: 1fr 1fr; }
-  .combo-foto { aspect-ratio: auto; }
-  .combo-cuerpo { padding: 28px; }
+.combos-lista { display: grid; gap: 10px; align-content: start; }
+.combo { background: var(--papel); border: 1px solid var(--linea); border-radius: 12px; }
+.combo-cuerpo { padding: 12px 14px 10px; display: grid; gap: 8px; min-width: 0; }
+.combo-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.combo-tag { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--dorado); background: var(--dorado-tinte); border-radius: 999px; padding: 4px 10px; }
+.combo-comp { min-width: 0; display: grid; gap: 2px; }
+.cc-linea { margin: 0; font-size: .95rem; color: var(--tinta-2); line-height: 1.3; }
+.cc-linea b { font-family: var(--f-display); font-style: italic; font-weight: 800; font-size: 1.45rem; color: var(--tinta); letter-spacing: .005em; }
+.cc-linea .cc-mas { color: var(--dorado); font-weight: 800; }
+.combo .fila-precio { min-height: 0; flex: none; }
+.combo .precio { font-size: 1.3rem; }
+.combo .acciones { gap: 8px; }
+.combo .stepper { height: 44px; }
+.combo .st-btn { width: 40px; }
+.combo .btn-agregar { min-height: 44px; font-size: .95rem; }
+.combo .en-carrito { min-height: 0; }
+.combo .en-carrito:empty { display: none; }
+.combo .nota-card { margin: 0; }
+@media (min-width: 760px) {
+  #gridCombos.con-foto { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: stretch; }
+  #gridCombos.con-foto .combos-foto { aspect-ratio: auto; min-height: 100%; }
 }
 
 /* ---------- Pedido ---------- */
@@ -375,7 +360,6 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
 /* Movimientos suaves */
 .btn-agregar { transition: background-color .2s ease, color .2s ease, border-color .2s ease; }
 .btn-agregar.tope { background: var(--papel-2); border-color: var(--linea); color: var(--tinta-2); cursor: default; font-size: .92rem; }
-.combo .btn-agregar.tope { background: transparent; border-color: #4a433d; color: #cfc6bb; }
 .st-btn { transition: color .15s ease, background-color .15s ease; }
 .st-btn:not(:disabled):active { background: var(--papel-2); }
 .badge { transition: transform .2s ease; }
@@ -472,7 +456,7 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
       </section>
 
       <section class="seccion" id="combos" aria-labelledby="t-combos">
-        <div class="sec-head"><h2 id="t-combos">Combos</h2><p>Milanesas + papas McCain</p></div>
+        <div class="sec-head"><h2 id="t-combos">Combos con papas</h2><p>Milanesas + papas McCain</p></div>
         <div id="gridCombos"></div>
       </section>
     </div>
@@ -617,6 +601,6 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="config.js?v=43b91a01"></script>
-<script src="app.js?v=c783734b"></script>
+<script src="app.js?v=b8ee9a95"></script>
 </body>
 </html>
