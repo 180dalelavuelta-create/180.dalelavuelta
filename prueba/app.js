@@ -227,7 +227,7 @@
     L.push("TOTAL: " + formatPrecio(t.total), "");
     L.push("Medio de pago: " + nombrePago(d.pago));
     const obs = (d.observaciones || "").trim();
-    L.push("Observaciones: " + (obs || "Sin observaciones"), "");
+    L.push("Referencias: " + (obs || "Sin referencias"), "");
     if (hor) L.push("Sé que pasan a dejar el pedido " + hor.largo + " y va a haber alguien para recibirlo.");
     L.push("¡Espero la confirmación del pedido!");
     return L.join("\n").replace(/\u00a0/g, " ");
