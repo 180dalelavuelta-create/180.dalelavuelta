@@ -112,7 +112,7 @@ h1, h2, h3 { font-family: var(--f-display); font-style: italic; font-weight: 800
 .ent-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .ent-label { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--tinta-2); }
 .ent-principal .ent-label { color: #f0c79f; }
-.ent-fecha { font-family: var(--f-display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 1.6rem; line-height: 1; letter-spacing: .005em; }
+.ent-fecha { font-family: var(--f-display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: clamp(1.25rem, 6.2vw, 1.6rem); line-height: 1; letter-spacing: .005em; overflow-wrap: anywhere; }
 .ent-sig .ent-fecha { font-size: 1.12rem; color: var(--tinta); }
 .ent-hora { display: inline-flex; align-items: center; gap: 6px; font-size: .92rem; font-weight: 600; color: #e4ddd4; }
 .ent-hora svg { width: 16px; height: 16px; flex: none; }
@@ -178,30 +178,41 @@ body.hero-visible .marca-texto { opacity: 1; transition: opacity .16s ease .14s;
 .st-btn:disabled { color: #bdb5ab; cursor: default; }
 .st-val { min-width: 26px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-/* Combo: banda negra, la composición es la protagonista */
-.combo { background: var(--tinta); color: var(--papel); border-radius: var(--r); overflow: hidden; display: grid; }
-.combo .eyebrow { color: #cfc6bb; }
-.combo-cuerpo { padding: 22px 20px 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.combo h3 { font-size: clamp(2.4rem, 9vw, 3.2rem); }
-.combo .desc { color: #d9d1c7; }
-.incluye { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 0; }
-.incluye li { font-family: var(--f-display); font-style: italic; font-weight: 700; font-size: 1.55rem; text-transform: uppercase; padding: 8px 0; border-top: 1px solid #3a342f; }
-.incluye li:last-child { border-bottom: 1px solid #3a342f; }
-.combo .precio-pend, .combo .nota-card { color: #d9d1c7; }
-.combo .chip-ej { color: #d9d1c7; }
-.combo .chip-agotado { background: var(--papel); color: var(--tinta); }
-.combo .stepper { border-color: #4a433d; }
-.combo .st-btn:disabled { color: #6b625a; }
-.combo .btn-agregar { background: var(--papel); color: var(--tinta); border-color: var(--papel); }
-.combo .btn-agregar:hover { background: #ece6df; }
-.combo .btn-agregar.ok { background: transparent; color: var(--papel); }
-.combo .en-carrito { color: #f0c79f; }
-.combo-foto { aspect-ratio: 4 / 3; max-width: 100%; }
-.combo-foto img { width: 100%; height: 100%; object-fit: cover; }
-@media (min-width: 720px) {
-  .combo.con-foto { grid-template-columns: 1fr 1fr; }
-  .combo-foto { aspect-ratio: auto; }
-  .combo-cuerpo { padding: 28px; }
+/* Combos con papas: lista tipo menú de delivery (foto + filas con botón "+") */
+#gridCombos { display: block; }
+.combos-menu { border: 1px solid var(--linea); border-radius: 14px; overflow: hidden; background: var(--papel); }
+.combos-foto { aspect-ratio: 16 / 9; max-width: 100%; background: var(--papel-2); }
+.combos-foto img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 55%; }
+.combo { border-top: 1px solid var(--linea); transition: background-color .2s ease; }
+.combo.en-pedido { background: var(--dorado-tinte); }
+.combo-cuerpo { display: flex; align-items: center; gap: 14px; padding: 14px 16px; min-width: 0; }
+.cf-txt { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.cf-nombre { font-size: clamp(1.15rem, 5.4vw, 1.35rem); line-height: 1.05; }
+.cf-desc { margin: 0; font-size: .88rem; line-height: 1.35; color: var(--tinta-2); }
+.cf-linea { margin: 2px 0 0; display: flex; align-items: center; gap: 8px; }
+.cf-precio { font-weight: 700; font-size: 1.08rem; font-variant-numeric: tabular-nums; }
+.cf-tope { font-size: .78rem; color: var(--dorado); font-weight: 600; }
+.cf-accion { flex: none; }
+.btn-mas { width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--tinta); color: var(--papel); font-size: 1.6rem; line-height: 1; display: grid; place-items: center; cursor: pointer; padding: 0 0 2px; transition: transform .15s ease, background-color .15s ease; }
+.btn-mas:hover { background: #2b2622; }
+.btn-mas:active { transform: scale(.92); }
+.combo .stepper { height: 44px; background: var(--papel); }
+.combo .st-btn { width: 42px; font-size: 1.25rem; }
+.combo.no-disp .cf-nombre, .combo.no-disp .cf-desc { opacity: .55; }
+@media (max-width: 340px) {
+  .combo.en-pedido .combo-cuerpo { flex-wrap: wrap; }
+  .combo.en-pedido .cf-txt { flex-basis: 100%; }
+  .combo.en-pedido .cf-accion { margin-left: auto; }
+}
+@media (max-width: 360px) {
+  .ent-principal { gap: 12px; padding: 12px 14px 12px 12px; }
+  .cal { width: 56px; }
+  .cal-dia { font-size: 2.1rem; }
+  .combo-cuerpo { gap: 10px; padding: 12px 12px; }
+}
+@media (min-width: 760px) {
+  .combos-foto { aspect-ratio: 21 / 9; }
+  .combos-foto img { object-position: 50% 38%; }
 }
 
 /* ---------- Pedido ---------- */
@@ -357,7 +368,6 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
 /* Movimientos suaves */
 .btn-agregar { transition: background-color .2s ease, color .2s ease, border-color .2s ease; }
 .btn-agregar.tope { background: var(--papel-2); border-color: var(--linea); color: var(--tinta-2); cursor: default; font-size: .92rem; }
-.combo .btn-agregar.tope { background: transparent; border-color: #4a433d; color: #cfc6bb; }
 .st-btn { transition: color .15s ease, background-color .15s ease; }
 .st-btn:not(:disabled):active { background: var(--papel-2); }
 .badge { transition: transform .2s ease; }
@@ -453,7 +463,7 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
       </section>
 
       <section class="seccion" id="combos" aria-labelledby="t-combos">
-        <div class="sec-head"><h2 id="t-combos">Combos</h2><p>Más cantidad en un solo pedido</p></div>
+        <div class="sec-head"><h2 id="t-combos">Combos con papas</h2><p>Milanesas + papas McCain bastón</p></div>
         <div id="gridCombos"></div>
       </section>
     </div>
@@ -597,7 +607,7 @@ legend { font-weight: 600; font-size: .95rem; padding: 0; margin-bottom: 8px; }
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="config.js?v=807ab2cc"></script>
-<script src="app.js?v=169b1bc6"></script>
+<script src="config.js?v=a1232aea"></script>
+<script src="app.js?v=81ae1b46"></script>
 </body>
 </html>
